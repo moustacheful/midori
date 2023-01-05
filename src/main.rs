@@ -1,11 +1,11 @@
-use futures::{future::select_all, stream, Stream, StreamExt};
-use std::{
-    pin::Pin,
-    time::{Duration, SystemTime},
-};
-use tokio::time::Interval;
+use futures::{future::select_all, Stream, StreamExt};
+use std::{pin::Pin, time::Duration};
 use tokio_stream::wrappers::IntervalStream;
 
+/**
+ * This is some kind of internal clock?
+ * e.g. when we have no device as source of it all.
+ */
 struct Tempo {
     main: IntervalStream,
     beat_interval: u64,
@@ -13,7 +13,6 @@ struct Tempo {
 
 impl Tempo {
     fn get_interval_stream(interval_ms: u64) -> IntervalStream {
-        println!("beginning tempo with {}", interval_ms);
         let interval = tokio::time::interval(Duration::from_millis(interval_ms));
 
         tokio_stream::wrappers::IntervalStream::new(interval)
@@ -30,6 +29,7 @@ impl Tempo {
     }
 
     pub fn subdiv(&mut self, factor: u64) -> impl Stream<Item = u64> {
+        // This seems wrong... but we want to remove the need for owning self at the end
         futures::executor::block_on(self.main.next());
 
         Self::get_interval_stream(self.beat_interval.clone() / factor).map(|_| 10 as u64)
@@ -55,8 +55,9 @@ impl Transform {
     ) -> Pin<Box<dyn Stream<Item = Wrapper<u64>> + Send>> {
         let streams: Vec<Pin<Box<dyn Stream<Item = Wrapper<u64>> + Send>>> = vec![
             origin_stream,
-            Box::pin(tempo.subdiv(1).map(|instant| Wrapper::Value(1))), // normal tempo
-            Box::pin(tempo.subdiv(4).map(|instant| Wrapper::Value(4))), // tempo / 4
+            Box::pin(tempo.subdiv(1).map(|_| Wrapper::Value(1))),
+            Box::pin(tempo.subdiv(2).map(|_| Wrapper::Value(2))),
+            Box::pin(tempo.subdiv(4).map(|_| Wrapper::Value(4))),
         ];
 
         let stream = futures::stream::select_all::select_all(streams).filter_map(|v| async move {
@@ -88,61 +89,71 @@ impl Pipeline {
         }
     }
 
+    pub fn add_transforms(&mut self, transforms: Vec<Transform>) {
+        self.transforms = transforms;
+    }
+
     pub async fn listen(
         self,
         origin_stream: Pin<Box<dyn Stream<Item = Wrapper<u64>> + Send>>,
-    ) -> Option<()> {
+    ) -> impl Stream<Item = Wrapper<u64>> {
         let name = self.name.clone();
         let mut tempo = Tempo::new(60);
 
         println!("{:?} listening", &name);
 
-        let mut r = self
-            .transforms
+        self.transforms
             .iter()
             .fold(origin_stream, |acc, transform| {
                 transform.pipe(acc, &mut tempo)
             })
-            .map(|v| {
-                println!("{:?} - {:?}", &v, &name,);
-                v
-            });
-
-        // Loop through events -- this should happen outside and leave this as a stream only.
-        while let Some(item) = r.next().await {}
-
-        println!("FINISHED {:?}", &name);
-
-        Some(())
     }
 }
 
 struct App {
-    pub tx: flume::Sender<u64>,
-    pub rx: flume::Receiver<u64>,
+    pub egress_sender: flume::Sender<Wrapper<u64>>,
+    pub ingress_rx: flume::Receiver<u64>,
     pub pipelines: Vec<Pipeline>,
 }
 
 impl App {
-    pub fn new(tx: flume::Sender<u64>, rx: flume::Receiver<u64>, pipelines: Vec<Pipeline>) -> App {
-        App { tx, rx, pipelines }
+    pub fn new(
+        egress_sender: flume::Sender<Wrapper<u64>>,
+        ingress_rx: flume::Receiver<u64>,
+        pipelines: Vec<Pipeline>,
+    ) -> App {
+        App {
+            ingress_rx,
+            egress_sender,
+            pipelines,
+        }
     }
 
-    pub async fn run_broadcast(self) -> Option<()> {
-        let pipelines = self.pipelines;
-        let rx = self.rx.clone();
-
-        let futs = pipelines
+    pub async fn run(self) -> Option<()> {
+        let pipeline_futures = self
+            .pipelines
             .into_iter()
             .map(|p| {
-                let origin_stream: Pin<Box<dyn Stream<Item = Wrapper<u64>> + Send>> =
-                    Box::pin(rx.clone().into_stream().map(|v| Wrapper::Value(v)));
+                let egress = self.egress_sender.clone();
+                let origin_stream: Pin<Box<dyn Stream<Item = Wrapper<u64>> + Send>> = Box::pin(
+                    self.ingress_rx
+                        .clone()
+                        .into_stream()
+                        .map(|v| Wrapper::Value(v)),
+                );
 
-                tokio::spawn(async { Box::pin(p.listen(origin_stream)).await })
+                tokio::spawn(async move {
+                    let mut result_stream = p.listen(origin_stream).await;
+
+                    while let Some(x) = result_stream.next().await {
+                        egress.send(x).unwrap();
+                    }
+                })
             })
             .collect::<Vec<_>>();
 
-        select_all(futs).await;
+        // Should this be the return instead?
+        select_all(pipeline_futures).await;
 
         Some(())
     }
@@ -150,33 +161,27 @@ impl App {
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn main() {
-    let (tx, rx) = flume::unbounded::<u64>();
-
-    let app_tx = tx.clone();
-    let app_rx = rx.clone();
+    // ingress_sender should be used to send midi events into the pipeline
+    let (ingress_sender, ingress_receiver) = flume::unbounded::<u64>();
+    let (egress_sender, egress_receiver) = flume::unbounded::<Wrapper<u64>>();
 
     let f = tokio::spawn(async {
-        let app = App::new(
-            app_tx,
-            app_rx,
-            vec![
-                Pipeline::new("One".to_string()),
-                // Pipeline::new("Two".to_string()),
-            ],
-        );
+        // Pipelines should be created by parsing a json
+        let mut pipeline = Pipeline::new("One".to_string());
+        pipeline.add_transforms(vec![Transform {}]);
 
-        app.run_broadcast().await;
+        let app = App::new(egress_sender, ingress_receiver, vec![pipeline]);
+
+        app.run().await;
 
         Some(())
     });
 
-    println!("Sending messages");
-    tx.send(10).unwrap();
-    tx.send(20).unwrap();
-    tx.send(30).unwrap();
-    tx.send(40).unwrap();
-    tx.send(50).unwrap();
-    tx.send(60).unwrap();
+    // This receiver will receive messages from all pipelines, it's up to whoever consumes this
+    // To dispatch the messages over to its destination.
+    while let Ok(d) = egress_receiver.recv_async().await {
+        println!("{:?}", d);
+    }
 
     f.await.unwrap();
 }
