@@ -1,5 +1,9 @@
-use futures::{future::select_all, Stream, StreamExt};
-use std::{pin::Pin, time::Duration};
+use futures::{future::select_all, stream, Stream, StreamExt};
+use std::{
+    pin::Pin,
+    time::{Duration, SystemTime},
+};
+use tokio::time::Interval;
 use tokio_stream::wrappers::IntervalStream;
 
 struct Tempo {
@@ -25,10 +29,10 @@ impl Tempo {
         }
     }
 
-    pub async fn subdiv(&mut self, factor: u64) -> IntervalStream {
-        self.main.next().await;
+    pub fn subdiv(&mut self, factor: u64) -> impl Stream<Item = u64> {
+        futures::executor::block_on(self.main.next());
 
-        Self::get_interval_stream(self.beat_interval / factor)
+        Self::get_interval_stream(self.beat_interval.clone() / factor).map(|_| 10 as u64)
     }
 }
 
@@ -36,28 +40,34 @@ impl Tempo {
 struct Transform {}
 
 impl Transform {
-    pub fn on_tempo() {}
-
-    pub fn on_message() {}
-}
-
-impl Stream for Transform {
-    type Item = u64;
-
-    fn poll_next(
-        self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Self::Item>> {
-        std::task::Poll::Pending
+    fn on_tempo(v: Wrapper<u64>) -> Option<Wrapper<u64>> {
+        None
     }
-}
 
-#[derive(Debug)]
-struct Pipeline {
-    name: String,
-    pub tx: flume::Sender<u64>,
-    pub rx: flume::Receiver<u64>,
-    pub transforms: Vec<Transform>,
+    fn on_message(v: Wrapper<u64>) -> Option<Wrapper<u64>> {
+        Some(v)
+    }
+
+    pub fn pipe(
+        &self,
+        origin_stream: Pin<Box<dyn Stream<Item = Wrapper<u64>> + Send>>,
+        tempo: &mut Tempo,
+    ) -> Pin<Box<dyn Stream<Item = Wrapper<u64>> + Send>> {
+        let streams: Vec<Pin<Box<dyn Stream<Item = Wrapper<u64>> + Send>>> = vec![
+            origin_stream,
+            Box::pin(tempo.subdiv(1).map(|instant| Wrapper::Value(1))), // normal tempo
+            Box::pin(tempo.subdiv(4).map(|instant| Wrapper::Value(4))), // tempo / 4
+        ];
+
+        let stream = futures::stream::select_all::select_all(streams).filter_map(|v| async move {
+            match v {
+                Wrapper::Tempo => Self::on_tempo(v),
+                Wrapper::Value(_) => Self::on_message(v),
+            }
+        });
+
+        Box::pin(stream)
+    }
 }
 
 #[derive(Debug)]
@@ -65,42 +75,45 @@ enum Wrapper<T> {
     Tempo,
     Value(T),
 }
+
+struct Pipeline {
+    name: String,
+    pub transforms: Vec<Transform>,
+}
 impl Pipeline {
     pub fn new(name: String) -> Pipeline {
-        let (tx, rx) = flume::unbounded::<u64>();
-
         Pipeline {
-            tx,
-            rx,
             name,
-            transforms: vec![Transform {}, Transform {}],
+            transforms: vec![Transform {}],
         }
     }
 
-    pub async fn listen(self) {
+    pub async fn listen(
+        self,
+        origin_stream: Pin<Box<dyn Stream<Item = Wrapper<u64>> + Send>>,
+    ) -> Option<()> {
         let name = self.name.clone();
         let mut tempo = Tempo::new(60);
 
-        let streams: Vec<Pin<Box<dyn Stream<Item = Wrapper<u64>> + Send>>> = vec![
-            Box::pin(self.rx.into_stream().map(|val| Wrapper::Value(val))),
-            Box::pin(tempo.subdiv(1).await.map(|instant| Wrapper::Value(1))),
-            Box::pin(tempo.subdiv(2).await.map(|instant| Wrapper::Value(2))),
-            Box::pin(tempo.subdiv(8).await.map(|instant| Wrapper::Value(8))),
-        ];
-
-        let mut stream = futures::stream::select_all::select_all(streams);
-
-        let transforms = self.transforms;
-
         println!("{:?} listening", &name);
 
-        while let Some(item) = stream.next().await {
-            transforms.iter().for_each(|t| {
-                // dbg!(t);
+        let mut r = self
+            .transforms
+            .iter()
+            .fold(origin_stream, |acc, transform| {
+                transform.pipe(acc, &mut tempo)
+            })
+            .map(|v| {
+                println!("{:?} - {:?}", &v, &name,);
+                v
             });
 
-            println!("{:?} - by {:?}", item, &name);
-        }
+        // Loop through events -- this should happen outside and leave this as a stream only.
+        while let Some(item) = r.next().await {}
+
+        println!("FINISHED {:?}", &name);
+
+        Some(())
     }
 }
 
@@ -117,19 +130,17 @@ impl App {
 
     pub async fn run_broadcast(self) -> Option<()> {
         let pipelines = self.pipelines;
-        let txs = pipelines.iter().map(|p| p.tx.clone()).collect::<Vec<_>>();
         let rx = self.rx.clone();
 
         let futs = pipelines
             .into_iter()
-            .map(|p| tokio::spawn(async { Box::pin(p.listen()).await }))
-            .collect::<Vec<_>>();
+            .map(|p| {
+                let origin_stream: Pin<Box<dyn Stream<Item = Wrapper<u64>> + Send>> =
+                    Box::pin(rx.clone().into_stream().map(|v| Wrapper::Value(v)));
 
-        while let Ok(item) = rx.recv_async().await {
-            for tx in &txs {
-                tx.send(item.clone()).unwrap();
-            }
-        }
+                tokio::spawn(async { Box::pin(p.listen(origin_stream)).await })
+            })
+            .collect::<Vec<_>>();
 
         select_all(futs).await;
 
@@ -150,7 +161,7 @@ async fn main() {
             app_rx,
             vec![
                 Pipeline::new("One".to_string()),
-                Pipeline::new("Two".to_string()),
+                // Pipeline::new("Two".to_string()),
             ],
         );
 
