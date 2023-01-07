@@ -19,7 +19,7 @@ impl Tempo {
     }
 
     pub fn new(bpm: u64) -> Tempo {
-        let beat_interval = ((bpm as f64 / 70.0) * 1000.0) as u64;
+        let beat_interval = ((bpm as f64 / 60.0) * 1000.0) as u64;
         let main = Self::get_interval_stream(beat_interval);
 
         Tempo {
@@ -55,9 +55,7 @@ impl Transform {
     ) -> Pin<Box<dyn Stream<Item = Wrapper<u64>> + Send>> {
         let streams: Vec<Pin<Box<dyn Stream<Item = Wrapper<u64>> + Send>>> = vec![
             origin_stream,
-            Box::pin(tempo.subdiv(1).map(|_| Wrapper::Value(1))),
-            Box::pin(tempo.subdiv(2).map(|_| Wrapper::Value(2))),
-            Box::pin(tempo.subdiv(4).map(|_| Wrapper::Value(4))),
+            Box::pin(tempo.subdiv(1).map(|_| Wrapper::Value(2))),
         ];
 
         let stream = futures::stream::select_all::select_all(streams).filter_map(|v| async move {
