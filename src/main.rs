@@ -1,12 +1,12 @@
 use futures::{future::select_all, Stream, StreamExt};
-use std::{pin::Pin, time::Duration};
+use std::{ops::Deref, pin::Pin, time::Duration};
 use tokio_stream::wrappers::IntervalStream;
 
 /**
  * This is some kind of internal clock?
  * e.g. when we have no device as source of it all.
  */
-struct Tempo {
+pub struct Tempo {
     main: IntervalStream,
     beat_interval: u64,
 }
@@ -36,59 +36,94 @@ impl Tempo {
     }
 }
 
-#[derive(Debug)]
-struct Transform {}
+pub fn pipe_stream(
+    origin_stream: Pin<Box<dyn Stream<Item = Wrapper<u64>> + Send>>,
+    tempo: &mut Tempo,
+    mut transform: Box<dyn Transform + Sync + Send>,
+) -> Pin<Box<dyn Stream<Item = Wrapper<u64>> + Send>> {
+    let streams: Vec<Pin<Box<dyn Stream<Item = Wrapper<u64>> + Send>>> = vec![
+        origin_stream,
+        Box::pin(tempo.subdiv(1).map(|_| Wrapper::Value(2))),
+    ];
 
-impl Transform {
-    fn on_tempo(v: Wrapper<u64>) -> Option<Wrapper<u64>> {
+    let stream = futures::stream::select_all::select_all(streams)
+        .filter_map(|v| async move { transform.process_message(v) });
+
+    Box::pin(stream)
+}
+
+trait Transform {
+    // This triggers on what we subscribe as points of interest, e.g. an arpeggio?
+    fn on_tick(&mut self, v: Wrapper<u64>) -> Option<Wrapper<u64>> {
         None
     }
 
-    fn on_message(v: Wrapper<u64>) -> Option<Wrapper<u64>> {
+    fn on_message(&mut self, v: Wrapper<u64>) -> Option<Wrapper<u64>> {
         Some(v)
     }
 
-    pub fn pipe(
-        &self,
-        origin_stream: Pin<Box<dyn Stream<Item = Wrapper<u64>> + Send>>,
-        tempo: &mut Tempo,
-    ) -> Pin<Box<dyn Stream<Item = Wrapper<u64>> + Send>> {
-        let streams: Vec<Pin<Box<dyn Stream<Item = Wrapper<u64>> + Send>>> = vec![
-            origin_stream,
-            Box::pin(tempo.subdiv(1).map(|_| Wrapper::Value(2))),
-        ];
-
-        let stream = futures::stream::select_all::select_all(streams).filter_map(|v| async move {
-            match v {
-                Wrapper::Tempo => Self::on_tempo(v),
-                Wrapper::Value(_) => Self::on_message(v),
-            }
-        });
-
-        Box::pin(stream)
+    fn process_message(&mut self, message: Wrapper<u64>) -> Option<Wrapper<u64>> {
+        match message {
+            Wrapper::Tempo => self.on_tick(message),
+            Wrapper::Value(_) => self.on_message(message),
+        }
     }
 }
 
 #[derive(Debug)]
-enum Wrapper<T> {
+struct ArpeggioTransform {
+    pressed_keys: Vec<u64>,
+    current_index: usize,
+}
+
+impl ArpeggioTransform {
+    pub fn new() -> ArpeggioTransform {
+        ArpeggioTransform {
+            pressed_keys: vec![],
+            current_index: 0,
+        }
+    }
+}
+
+impl Transform for ArpeggioTransform {
+    fn on_tick(&mut self, v: Wrapper<u64>) -> Option<Wrapper<u64>> {
+        let current_index = self.pressed_keys.get(self.current_index);
+
+        if None == current_index {
+            return None;
+        }
+
+        self.current_index += 1;
+        Some(Wrapper::Value(current_index.unwrap().clone()))
+    }
+
+    fn on_message(&mut self, v: Wrapper<u64>) -> Option<Wrapper<u64>> {
+        // Match only key on/off...
+        match v {
+            Wrapper::Tempo => todo!(),
+            Wrapper::Value(value) => self.pressed_keys.push(value),
+        }
+
+        None
+    }
+}
+
+#[derive(Debug)]
+pub enum Wrapper<T> {
     Tempo,
     Value(T),
 }
 
 struct Pipeline {
     name: String,
-    pub transforms: Vec<Transform>,
+    pub transforms: Vec<Box<dyn Transform + Sync + Send + 'static>>,
 }
 impl Pipeline {
     pub fn new(name: String) -> Pipeline {
         Pipeline {
             name,
-            transforms: vec![Transform {}],
+            transforms: vec![Box::new(ArpeggioTransform::new())],
         }
-    }
-
-    pub fn add_transforms(&mut self, transforms: Vec<Transform>) {
-        self.transforms = transforms;
     }
 
     pub async fn listen(
@@ -100,10 +135,12 @@ impl Pipeline {
 
         println!("{:?} listening", &name);
 
-        self.transforms
-            .iter()
-            .fold(origin_stream, |acc, transform| {
-                transform.pipe(acc, &mut tempo)
+        let mut transforms = self.transforms;
+
+        transforms
+            .into_iter()
+            .fold(origin_stream, move |acc, mut transform| {
+                pipe_stream(acc, &mut tempo, transform)
             })
     }
 }
@@ -166,7 +203,6 @@ async fn main() {
     let f = tokio::spawn(async {
         // Pipelines should be created by parsing a json
         let mut pipeline = Pipeline::new("One".to_string());
-        pipeline.add_transforms(vec![Transform {}]);
 
         let app = App::new(egress_sender, ingress_receiver, vec![pipeline]);
 
