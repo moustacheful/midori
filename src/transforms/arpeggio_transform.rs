@@ -18,7 +18,7 @@ impl ArpeggioTransform {
 }
 
 impl Transform for ArpeggioTransform {
-    fn on_tick(&mut self, v: Wrapper<u64>) -> Option<Wrapper<u64>> {
+    fn on_tick(&mut self, _: Wrapper<u64>) -> Option<Wrapper<u64>> {
         let current_index = self
             .pressed_keys
             .get(self.current_index % self.pressed_keys.len());

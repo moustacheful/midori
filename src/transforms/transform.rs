@@ -2,7 +2,7 @@ use crate::Wrapper;
 
 pub trait Transform {
     // This triggers on what we subscribe as points of interest, e.g. an arpeggio?
-    fn on_tick(&mut self, v: Wrapper<u64>) -> Option<Wrapper<u64>> {
+    fn on_tick(&mut self, _: Wrapper<u64>) -> Option<Wrapper<u64>> {
         None
     }
 

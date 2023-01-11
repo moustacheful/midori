@@ -65,7 +65,7 @@ impl App {
             .collect::<Vec<_>>();
 
         // Should this be the return instead?
-        select_all(pipeline_futures).await;
+        let _ = select_all(pipeline_futures).await;
 
         Some(())
     }
@@ -111,8 +111,9 @@ async fn main() {
         let sender = ingress_sender.clone();
         let mut n = 0;
 
-        while let _ = i.tick().await {
-            sender.send(n);
+        loop {
+            i.tick().await;
+            sender.send(n).unwrap();
             n += 1;
         }
     });
@@ -120,7 +121,7 @@ async fn main() {
     // This receiver will receive messages from all pipelines, it's up to whoever consumes this
     // To dispatch the messages over to its destination.
     while let Ok(d) = egress_receiver.recv_async().await {
-        // println!("{:?}", d);
+        println!("{:?}", d);
     }
 
     f.await.unwrap();
