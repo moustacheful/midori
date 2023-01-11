@@ -71,7 +71,8 @@ impl App {
     }
 }
 
-#[tokio::main(flavor = "multi_thread", worker_threads = 1)]
+// How many threads should I use here...?
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn main() {
     // ingress_sender should be used to send midi events into the pipeline
     let (ingress_sender, ingress_receiver) = flume::unbounded::<u64>();
