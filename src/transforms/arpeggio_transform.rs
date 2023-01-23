@@ -1,16 +1,17 @@
-use crate::Wrapper;
-
 use super::Transform;
+use crate::{midi_event::MidiEvent, midi_mapper::MidiRouterMessage};
 
 #[derive(Debug)]
 pub struct ArpeggioTransform {
-    pressed_keys: Vec<u64>,
+    tempo_subdiv: Option<u64>,
+    pressed_keys: Vec<MidiEvent>,
     current_index: usize,
 }
 
 impl ArpeggioTransform {
-    pub fn new() -> ArpeggioTransform {
+    pub fn new(tempo_subdiv: Option<u64>) -> ArpeggioTransform {
         ArpeggioTransform {
+            tempo_subdiv,
             pressed_keys: vec![],
             current_index: 0,
         }
@@ -18,21 +19,49 @@ impl ArpeggioTransform {
 }
 
 impl Transform for ArpeggioTransform {
-    fn on_tick(&mut self, _: Wrapper<u64>) -> Option<Wrapper<u64>> {
-        let current_index = self
+    fn get_tempo_subdiv(&self) -> Option<u64> {
+        self.tempo_subdiv
+    }
+
+    fn on_tick(&mut self) -> Option<MidiRouterMessage> {
+        if self.pressed_keys.len() == 0 {
+            return None;
+        }
+
+        let current_key = self
             .pressed_keys
             .get(self.current_index % self.pressed_keys.len());
 
-        self.current_index += 1;
-        Some(Wrapper::Value(current_index.unwrap().clone()))
-    }
+        if let Some(found) = current_key {
+            self.current_index += 1;
 
-    fn on_message(&mut self, v: Wrapper<u64>) -> Option<Wrapper<u64>> {
-        if let Wrapper::Value(key) = v {
-            self.pressed_keys.push(key);
-            self.current_index = 0;
+            return Some(MidiRouterMessage {
+                device: "self".to_string(),
+                event: found.clone(),
+            });
         }
 
         None
+    }
+
+    fn on_message(&mut self, message: MidiRouterMessage) -> Option<MidiRouterMessage> {
+        match message.event {
+            MidiEvent::NoteOff { note, .. } => {
+                self.pressed_keys.retain(|v| match v {
+                    MidiEvent::NoteOn {
+                        note: stored_note, ..
+                    } => *stored_note != note,
+                    _ => true,
+                });
+                // self.current_index = 0;
+                return None;
+            }
+            MidiEvent::NoteOn { .. } => {
+                self.pressed_keys.push(message.event);
+                self.current_index = 0;
+                return None;
+            }
+            _ => return Some(message),
+        }
     }
 }

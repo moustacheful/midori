@@ -1,12 +1,12 @@
 use super::Transform;
-use crate::Wrapper;
+use crate::{midi_mapper::MidiRouterMessage, MidiRouterMessageWrapper, Wrapper};
 
 pub struct InspectTransform {
     pub prefix: String,
 }
 
 impl Transform for InspectTransform {
-    fn on_message(&mut self, v: Wrapper<u64>) -> Option<Wrapper<u64>> {
+    fn on_message(&mut self, v: MidiRouterMessage) -> Option<MidiRouterMessage> {
         println!("[{:?}]: {:?}", self.prefix, v);
 
         Some(v)

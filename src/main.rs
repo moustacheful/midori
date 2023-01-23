@@ -1,11 +1,16 @@
+mod midi_event;
+mod midi_mapper;
 mod pipeline;
 mod tempo;
 mod transforms;
 
 use futures::{future::select_all, StreamExt};
+use midi_mapper::{MidiMapper, MidiRouterMessage};
 use pipeline::Pipeline;
-use std::time::Duration;
-use transforms::{ArpeggioTransform, InspectTransform};
+use transforms::{
+    ArpeggioTransform, DistributeTransform, FilterTransform, FilterTransformOptions, MapTransform,
+    MapTransformOptions, OutputTransform,
+};
 
 #[derive(Debug)]
 pub enum Wrapper<T> {
@@ -13,35 +18,49 @@ pub enum Wrapper<T> {
     Value(T),
 }
 
-struct App {
-    pub egress_sender: flume::Sender<Wrapper<u64>>,
-    pub ingress_rx: flume::Receiver<u64>,
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum MidiRouterMessageWrapper {
+    Tick,
+    RouterMessage(MidiRouterMessage),
+}
+
+pub struct App {
+    pub egress_sender: Option<flume::Sender<MidiRouterMessage>>,
+    pub ingress_rx: Option<flume::Receiver<MidiRouterMessage>>,
     pub pipelines: Vec<pipeline::Pipeline>,
 }
 
 impl App {
-    pub fn new(
-        egress_sender: flume::Sender<Wrapper<u64>>,
-        ingress_rx: flume::Receiver<u64>,
-        pipelines: Vec<pipeline::Pipeline>,
-    ) -> App {
+    pub fn new(pipelines: Vec<pipeline::Pipeline>) -> App {
         App {
-            ingress_rx,
-            egress_sender,
+            ingress_rx: None,
+            egress_sender: None,
             pipelines,
         }
     }
 
+    pub fn set_ingress(&mut self, ingress_rx: flume::Receiver<MidiRouterMessage>) {
+        self.ingress_rx = Some(ingress_rx);
+    }
+
+    pub fn set_egress(&mut self, egress_sender: flume::Sender<MidiRouterMessage>) {
+        self.egress_sender = Some(egress_sender);
+    }
+
     pub async fn run(self) -> Option<()> {
+        let ingress_rx = self.ingress_rx.unwrap();
+        let egress_sender = self.egress_sender.unwrap();
+
         // Collect each pipelines' sender
-        let txs: Vec<flume::Sender<Wrapper<u64>>> =
+        let txs: Vec<flume::Sender<MidiRouterMessageWrapper>> =
             self.pipelines.iter().map(|p| p.tx.clone()).collect::<_>();
 
         // Broadcast events from ingress to each pipeline sender
         tokio::spawn(async move {
-            while let Ok(x) = self.ingress_rx.recv_async().await {
+            while let Ok(x) = ingress_rx.recv_async().await {
                 txs.iter().for_each(|tx| {
-                    tx.send(Wrapper::Value(x)).unwrap();
+                    tx.send(MidiRouterMessageWrapper::RouterMessage(x.clone()))
+                        .unwrap();
                 });
             }
         });
@@ -52,13 +71,15 @@ impl App {
             .pipelines
             .into_iter()
             .map(|p| {
-                let egress = self.egress_sender.clone();
+                let egress = egress_sender.clone();
 
                 tokio::spawn(async move {
                     let mut result_stream = p.listen().await;
 
                     while let Some(x) = result_stream.next().await {
-                        egress.send(x).unwrap();
+                        if let MidiRouterMessageWrapper::RouterMessage(message) = x {
+                            egress.send(message).unwrap();
+                        }
                     }
                 })
             })
@@ -74,55 +95,53 @@ impl App {
 // How many threads should I use here...?
 #[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn main() {
-    // ingress_sender should be used to send midi events into the pipeline
-    let (ingress_sender, ingress_receiver) = flume::unbounded::<u64>();
-    let (egress_sender, egress_receiver) = flume::unbounded::<Wrapper<u64>>();
-
-    let f = tokio::spawn(async {
-        let app = App::new(
-            egress_sender,
-            ingress_receiver,
+    let pipelines = vec![
+        Pipeline::new(
+            "One".to_string(),
             vec![
-                Pipeline::new(
-                    "One".to_string(),
-                    vec![
-                        Box::new(ArpeggioTransform::new()),
-                        Box::new(InspectTransform {
-                            prefix: "P1".to_string(),
-                        }),
-                    ],
-                ),
-                Pipeline::new(
-                    "Two".to_string(),
-                    vec![Box::new(InspectTransform {
-                        prefix: "P2".to_string(),
-                    })],
-                ),
+                Box::new(FilterTransform::new(FilterTransformOptions {
+                    channels: vec![0],
+                })),
+                Box::new(ArpeggioTransform::new(Some(8))),
+                Box::new(DistributeTransform::new(vec![0, 1, 2])),
+                Box::new(OutputTransform::new("modelcycles-out".to_string())),
             ],
-        );
+        ),
+        Pipeline::new(
+            "Two".to_string(),
+            vec![
+                Box::new(FilterTransform::new(FilterTransformOptions {
+                    channels: vec![9],
+                })),
+                Box::new(MapTransform::new(MapTransformOptions {
+                    channels: vec![(9, 5)],
+                    cc: vec![],
+                })),
+                Box::new(OutputTransform::new("modelcycles-out".to_string())),
+            ],
+        ),
+        Pipeline::new(
+            "Three".to_string(),
+            vec![
+                Box::new(FilterTransform::new(FilterTransformOptions {
+                    channels: vec![8],
+                })),
+                Box::new(MapTransform::new(MapTransformOptions {
+                    cc: vec![(74, 16)],
+                    channels: vec![(8, 4)],
+                })),
+                Box::new(ArpeggioTransform::new(Some(2))),
+                Box::new(OutputTransform::new("modelcycles-out".to_string())),
+            ],
+        ),
+    ];
 
-        app.run().await;
+    let app = App::new(pipelines);
 
-        Some(())
-    });
+    let mut midi_mapper = MidiMapper::new();
+    midi_mapper.add_output("Artiphon Orba".to_string(), "orba-out".to_string());
+    midi_mapper.add_input("Artiphon Orba".to_string(), "orba".to_string());
+    midi_mapper.add_output("Elektron".to_string(), "modelcycles-out".to_string());
 
-    tokio::spawn(async move {
-        let mut i = tokio::time::interval(Duration::from_millis(5000));
-        let sender = ingress_sender.clone();
-        let mut n = 0;
-
-        loop {
-            i.tick().await;
-            sender.send(n).unwrap();
-            n += 1;
-        }
-    });
-
-    // This receiver will receive messages from all pipelines, it's up to whoever consumes this
-    // To dispatch the messages over to its destination.
-    while let Ok(d) = egress_receiver.recv_async().await {
-        println!("{:?}", d);
-    }
-
-    f.await.unwrap();
+    midi_mapper.start(app);
 }

@@ -1,19 +1,23 @@
-use crate::Wrapper;
+use crate::{midi_mapper::MidiRouterMessage, MidiRouterMessageWrapper};
 
 pub trait Transform {
-    // This triggers on what we subscribe as points of interest, e.g. an arpeggio?
-    fn on_tick(&mut self, _: Wrapper<u64>) -> Option<Wrapper<u64>> {
+    fn get_tempo_subdiv(&self) -> Option<u64> {
         None
     }
 
-    fn on_message(&mut self, v: Wrapper<u64>) -> Option<Wrapper<u64>> {
+    // This triggers on what we subscribe as points of interest, e.g. an arpeggio?
+    fn on_tick(&mut self) -> Option<MidiRouterMessage> {
+        None
+    }
+
+    fn on_message(&mut self, v: MidiRouterMessage) -> Option<MidiRouterMessage> {
         Some(v)
     }
 
-    fn process_message(&mut self, message: Wrapper<u64>) -> Option<Wrapper<u64>> {
+    fn process_message(&mut self, message: MidiRouterMessageWrapper) -> Option<MidiRouterMessage> {
         match message {
-            Wrapper::Tempo => self.on_tick(message),
-            Wrapper::Value(_) => self.on_message(message),
+            MidiRouterMessageWrapper::Tick => self.on_tick(),
+            MidiRouterMessageWrapper::RouterMessage(message) => self.on_message(message),
         }
     }
 }

@@ -2,36 +2,45 @@ use futures::StreamExt;
 use futures::{future, Stream};
 use std::pin::Pin;
 
+use crate::MidiRouterMessageWrapper;
 use crate::{tempo, transforms::Transform};
 
-use super::Wrapper;
-
-pub(crate) struct Pipeline {
-    pub(crate) rx: flume::Receiver<Wrapper<u64>>,
-    pub tx: flume::Sender<Wrapper<u64>>,
+pub struct Pipeline {
+    pub(crate) rx: flume::Receiver<MidiRouterMessageWrapper>,
+    pub tx: flume::Sender<MidiRouterMessageWrapper>,
     pub(crate) name: String,
     pub transforms: Vec<Box<dyn Transform + Sync + Send>>,
 }
 
 impl Pipeline {
     pub(crate) fn pipe_stream(
-        origin_stream: Pin<Box<dyn Stream<Item = Wrapper<u64>> + Send>>,
+        origin_stream: Pin<Box<dyn Stream<Item = MidiRouterMessageWrapper> + Send>>,
         tempo: &mut tempo::Tempo,
         mut transform: Box<dyn Transform + Sync + Send>,
-    ) -> Pin<Box<dyn Stream<Item = Wrapper<u64>> + Send>> {
-        let streams: Vec<Pin<Box<dyn Stream<Item = Wrapper<u64>> + Send>>> = vec![
-            origin_stream,
-            Box::pin(tempo.subdiv(32).map(|_| Wrapper::Tempo)),
-        ];
+    ) -> Pin<Box<dyn Stream<Item = MidiRouterMessageWrapper> + Send>> {
+        let mut streams: Vec<Pin<Box<dyn Stream<Item = MidiRouterMessageWrapper> + Send>>> =
+            vec![origin_stream];
 
-        let stream = futures::stream::select_all::select_all(streams)
-            .filter_map(move |v| future::ready(transform.process_message(v)));
+        if let Some(subdiv) = transform.get_tempo_subdiv() {
+            streams.push(Box::pin(
+                tempo.subdiv(subdiv).map(|_| MidiRouterMessageWrapper::Tick),
+            ))
+        }
+
+        let stream = futures::stream::select_all::select_all(streams).filter_map(move |v| {
+            let result = match transform.process_message(v) {
+                Some(r) => Some(MidiRouterMessageWrapper::RouterMessage(r)),
+                None => None,
+            };
+
+            future::ready(result)
+        });
 
         Box::pin(stream)
     }
 
     pub fn new(name: String, transforms: Vec<Box<dyn Transform + Sync + Send>>) -> Pipeline {
-        let (tx, rx) = flume::unbounded::<Wrapper<u64>>();
+        let (tx, rx) = flume::unbounded::<MidiRouterMessageWrapper>();
         Pipeline {
             tx,
             rx,
@@ -40,10 +49,10 @@ impl Pipeline {
         }
     }
 
-    pub async fn listen(self) -> impl Stream<Item = Wrapper<u64>> {
+    pub async fn listen(self) -> impl Stream<Item = MidiRouterMessageWrapper> {
         let name = self.name.clone();
         let mut tempo = tempo::Tempo::new(60);
-        let origin_stream: Pin<Box<dyn Stream<Item = Wrapper<u64>> + Send>> =
+        let origin_stream: Pin<Box<dyn Stream<Item = MidiRouterMessageWrapper> + Send>> =
             Box::pin(self.rx.into_stream());
         println!("{:?} listening", &name);
 
