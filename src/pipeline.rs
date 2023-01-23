@@ -2,7 +2,7 @@ use futures::StreamExt;
 use futures::{future, Stream};
 use std::pin::Pin;
 
-use crate::MidiRouterMessageWrapper;
+use crate::app::MidiRouterMessageWrapper;
 use crate::{tempo, transforms::Transform};
 
 pub struct Pipeline {

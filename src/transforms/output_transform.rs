@@ -1,5 +1,5 @@
 use super::Transform;
-use crate::{midi_mapper::MidiRouterMessage, MidiRouterMessageWrapper, Wrapper};
+use crate::midi_mapper::MidiRouterMessage;
 
 pub struct OutputTransform {
     output_device: String,

@@ -1,11 +1,12 @@
+mod app;
 mod midi_event;
 mod midi_mapper;
 mod pipeline;
 mod tempo;
 mod transforms;
 
-use futures::{future::select_all, StreamExt};
-use midi_mapper::{MidiMapper, MidiRouterMessage};
+use app::App;
+use midi_mapper::MidiMapper;
 use pipeline::Pipeline;
 use transforms::{
     ArpeggioTransform, DistributeTransform, FilterTransform, FilterTransformOptions, MapTransform,
@@ -16,80 +17,6 @@ use transforms::{
 pub enum Wrapper<T> {
     Tempo,
     Value(T),
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub enum MidiRouterMessageWrapper {
-    Tick,
-    RouterMessage(MidiRouterMessage),
-}
-
-pub struct App {
-    pub egress_sender: Option<flume::Sender<MidiRouterMessage>>,
-    pub ingress_rx: Option<flume::Receiver<MidiRouterMessage>>,
-    pub pipelines: Vec<pipeline::Pipeline>,
-}
-
-impl App {
-    pub fn new(pipelines: Vec<pipeline::Pipeline>) -> App {
-        App {
-            ingress_rx: None,
-            egress_sender: None,
-            pipelines,
-        }
-    }
-
-    pub fn set_ingress(&mut self, ingress_rx: flume::Receiver<MidiRouterMessage>) {
-        self.ingress_rx = Some(ingress_rx);
-    }
-
-    pub fn set_egress(&mut self, egress_sender: flume::Sender<MidiRouterMessage>) {
-        self.egress_sender = Some(egress_sender);
-    }
-
-    pub async fn run(self) -> Option<()> {
-        let ingress_rx = self.ingress_rx.unwrap();
-        let egress_sender = self.egress_sender.unwrap();
-
-        // Collect each pipelines' sender
-        let txs: Vec<flume::Sender<MidiRouterMessageWrapper>> =
-            self.pipelines.iter().map(|p| p.tx.clone()).collect::<_>();
-
-        // Broadcast events from ingress to each pipeline sender
-        tokio::spawn(async move {
-            while let Ok(x) = ingress_rx.recv_async().await {
-                txs.iter().for_each(|tx| {
-                    tx.send(MidiRouterMessageWrapper::RouterMessage(x.clone()))
-                        .unwrap();
-                });
-            }
-        });
-
-        // Iterate through all pipelines and obtain their streams
-        // Listen to all their messages and send them to the egress
-        let pipeline_futures = self
-            .pipelines
-            .into_iter()
-            .map(|p| {
-                let egress = egress_sender.clone();
-
-                tokio::spawn(async move {
-                    let mut result_stream = p.listen().await;
-
-                    while let Some(x) = result_stream.next().await {
-                        if let MidiRouterMessageWrapper::RouterMessage(message) = x {
-                            egress.send(message).unwrap();
-                        }
-                    }
-                })
-            })
-            .collect::<Vec<_>>();
-
-        // Should this be the return instead?
-        let _ = select_all(pipeline_futures).await;
-
-        Some(())
-    }
 }
 
 // How many threads should I use here...?

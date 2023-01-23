@@ -1,4 +1,4 @@
-use crate::{midi_mapper::MidiRouterMessage, MidiRouterMessageWrapper};
+use crate::{app::MidiRouterMessageWrapper, midi_mapper::MidiRouterMessage};
 
 pub trait Transform {
     fn get_tempo_subdiv(&self) -> Option<u64> {
@@ -10,8 +10,8 @@ pub trait Transform {
         None
     }
 
-    fn on_message(&mut self, v: MidiRouterMessage) -> Option<MidiRouterMessage> {
-        Some(v)
+    fn on_message(&mut self, message: MidiRouterMessage) -> Option<MidiRouterMessage> {
+        Some(message)
     }
 
     fn process_message(&mut self, message: MidiRouterMessageWrapper) -> Option<MidiRouterMessage> {

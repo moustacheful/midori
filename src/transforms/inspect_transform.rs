@@ -1,5 +1,5 @@
 use super::Transform;
-use crate::{midi_mapper::MidiRouterMessage, MidiRouterMessageWrapper, Wrapper};
+use crate::midi_mapper::MidiRouterMessage;
 
 pub struct InspectTransform {
     pub prefix: String,

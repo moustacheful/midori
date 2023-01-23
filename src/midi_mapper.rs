@@ -44,7 +44,6 @@ impl MidiMapper {
         app.set_egress(egress_sender);
         app.set_ingress(self.ingress.clone());
 
-        // END OF DEFINITIONS
         tokio::spawn(async {
             app.run().await;
         });
