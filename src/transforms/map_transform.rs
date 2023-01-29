@@ -1,11 +1,14 @@
 use std::collections::HashMap;
 
+use serde::Deserialize;
+
 use super::Transform;
 use crate::{midi_event::MidiEvent, midi_mapper::MidiRouterMessage};
 
+#[derive(Debug, Deserialize)]
 pub struct MapTransformOptions {
-    pub channels: Vec<(u8, u8)>,
-    pub cc: Vec<(u8, u8)>,
+    pub channels: Option<Vec<(u8, u8)>>,
+    pub cc: Option<Vec<(u8, u8)>>,
 }
 
 pub struct MapTransform {
@@ -14,10 +17,10 @@ pub struct MapTransform {
 }
 
 impl MapTransform {
-    pub fn new(options: MapTransformOptions) -> Self {
+    pub fn from_config(options: MapTransformOptions) -> Self {
         Self {
-            channels: HashMap::from_iter(options.channels),
-            cc: HashMap::from_iter(options.cc),
+            channels: HashMap::from_iter(options.channels.unwrap_or(vec![])),
+            cc: HashMap::from_iter(options.cc.unwrap_or(vec![])),
         }
     }
 }

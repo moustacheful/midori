@@ -6,7 +6,7 @@ pub struct OutputTransform {
 }
 
 impl OutputTransform {
-    pub fn new(output_device: String) -> Self {
+    pub fn from_config(output_device: String) -> Self {
         Self { output_device }
     }
 }

@@ -1,0 +1,29 @@
+input_devices:
+  orba: "Orba"
+
+output_devices:
+  emc: "Elektron Model Cycles"
+
+pipelines:
+  - name: "One"
+    transforms:
+      - !Filter
+        channels: [0]
+      - !Map
+        channels:
+          - [1, 2]
+          - [5, 3]
+        cc:
+          - [1, 3]
+          - [9, 11]
+      - !Output emc
+
+  - name: "Two"
+    transforms:
+      - !Filter
+        channels: [0]
+      - !Arpeggio
+        subdivision: 8
+        direction: Forward
+        repeat: 1
+      - !Output emc

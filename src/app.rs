@@ -1,5 +1,18 @@
-use crate::{midi_mapper::MidiRouterMessage, pipeline::Pipeline};
+use std::collections::HashMap;
+
+use crate::{
+    midi_mapper::MidiRouterMessage,
+    pipeline::{Pipeline, PipelineOptions},
+};
 use futures::{future::select_all, StreamExt};
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize)]
+pub struct AppConfig {
+    pub input_devices: HashMap<String, String>,
+    pub output_devices: HashMap<String, String>,
+    pub pipelines: Vec<PipelineOptions>,
+}
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum MidiRouterMessageWrapper {
@@ -14,6 +27,18 @@ pub struct App {
 }
 
 impl App {
+    pub fn from_config(config: AppConfig) -> App {
+        App {
+            ingress: None,
+            egress: None,
+            pipelines: config
+                .pipelines
+                .into_iter()
+                .map(|pipeline_config| Pipeline::from_config(pipeline_config))
+                .collect(),
+        }
+    }
+
     pub fn new(pipelines: Vec<Pipeline>) -> App {
         App {
             ingress: None,

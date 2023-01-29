@@ -1,5 +1,21 @@
+use serde::Deserialize;
+
 use super::Transform;
 use crate::{midi_event::MidiEvent, midi_mapper::MidiRouterMessage};
+
+#[derive(Debug, Deserialize)]
+pub enum ArpeggioDirection {
+    Forward,
+    Backwards,
+    PingPong,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ArpeggioTransformOptions {
+    subdivision: u64,
+    direction: ArpeggioDirection,
+    repeat: u8,
+}
 
 #[derive(Debug)]
 pub struct ArpeggioTransform {
@@ -9,6 +25,14 @@ pub struct ArpeggioTransform {
 }
 
 impl ArpeggioTransform {
+    pub fn from_config(config: ArpeggioTransformOptions) -> ArpeggioTransform {
+        ArpeggioTransform {
+            tempo_subdiv: Some(config.subdivision),
+            pressed_keys: vec![],
+            current_index: 0,
+        }
+    }
+
     pub fn new(tempo_subdiv: Option<u64>) -> ArpeggioTransform {
         ArpeggioTransform {
             tempo_subdiv,

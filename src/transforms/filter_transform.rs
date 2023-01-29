@@ -1,6 +1,8 @@
 use super::Transform;
 use crate::midi_mapper::MidiRouterMessage;
+use serde::Deserialize;
 
+#[derive(Debug, Deserialize)]
 pub struct FilterTransformOptions {
     pub channels: Vec<u8>,
 }
@@ -10,7 +12,7 @@ pub struct FilterTransform {
 }
 
 impl FilterTransform {
-    pub fn new(options: FilterTransformOptions) -> Self {
+    pub fn from_config(options: FilterTransformOptions) -> Self {
         Self {
             channels: options.channels,
         }
