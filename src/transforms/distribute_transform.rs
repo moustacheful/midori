@@ -1,16 +1,23 @@
 use std::{iter::Cycle, vec::IntoIter};
 
+use serde::Deserialize;
+
 use super::Transform;
 use crate::{midi_event::MidiEvent, midi_mapper::MidiRouterMessage};
+
+#[derive(Debug, Deserialize)]
+pub struct DistributeTransformOptions {
+    between: Vec<u8>,
+}
 
 pub struct DistributeTransform {
     between_iter: Cycle<IntoIter<u8>>,
 }
 
 impl DistributeTransform {
-    pub fn new(between: Vec<u8>) -> Self {
+    pub fn from_config(config: DistributeTransformOptions) -> Self {
         Self {
-            between_iter: between.into_iter().cycle(),
+            between_iter: config.between.into_iter().cycle(),
         }
     }
 }

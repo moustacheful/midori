@@ -1,29 +1,33 @@
 input_devices:
-  orba: "Orba"
+  orba: "Artiphon Orba"
 
 output_devices:
-  emc: "Elektron Model Cycles"
+  emc: "Elektron Model:Cycles"
 
 pipelines:
-  - name: "One"
+  - name: "Does this thing even need a name?"
     transforms:
       - !Filter
         channels: [0]
       - !Map
         channels:
-          - [1, 2]
-          - [5, 3]
-        cc:
-          - [1, 3]
-          - [9, 11]
+          - [0, 1]
+      - !Arpeggio
+        subdivision: 0.25
+        direction: Forward
+        repeat: 1
       - !Output emc
 
-  - name: "Two"
+  - name: "Arpeggio things idk"
     transforms:
       - !Filter
         channels: [0]
+      - !Map
+        cc:
+          # Tilt to pitch
+          - [1, 65]
       - !Arpeggio
-        subdivision: 8
+        subdivision: 1
         direction: Forward
         repeat: 1
       - !Output emc

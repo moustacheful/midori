@@ -14,7 +14,6 @@ use parser::test_parse;
 #[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn main() {
     let config = test_parse("./test.yml".to_string()).unwrap();
-
     let mut midi_mapper = MidiMapper::new();
 
     config.input_devices.iter().for_each(|(alias, full_name)| {
@@ -26,5 +25,6 @@ async fn main() {
     });
 
     let app = App::from_config(config);
+
     midi_mapper.start(app);
 }

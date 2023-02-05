@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1.20.1", features = ["full"] }
 mini-redis = "0.4"
-tokio-stream = "0.1.11"
+tokio-stream = { version = "0.1.11", features = ["sync"] }
 futures = "0.3.21"
 rand = "0.8.5"
 async-stream = "0.3.3"

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::{
     midi_mapper::MidiRouterMessage,
     pipeline::{Pipeline, PipelineOptions},
+    tempo::Clock,
 };
 use futures::{future::select_all, StreamExt};
 use serde::Deserialize;
@@ -39,14 +40,6 @@ impl App {
         }
     }
 
-    pub fn new(pipelines: Vec<Pipeline>) -> App {
-        App {
-            ingress: None,
-            egress: None,
-            pipelines,
-        }
-    }
-
     pub fn set_ingress(&mut self, ingress: flume::Receiver<MidiRouterMessage>) {
         self.ingress = Some(ingress);
     }
@@ -56,8 +49,11 @@ impl App {
     }
 
     pub async fn run(self) -> Option<()> {
+        let (clock, clock_handler) = Clock::new(60.0, 96.0);
         let ingress = self.ingress.unwrap();
         let egress = self.egress.unwrap();
+
+        tokio::spawn(async move { clock.start().await });
 
         // Collect each pipelines' sender
         let txs: Vec<flume::Sender<MidiRouterMessageWrapper>> =
@@ -80,9 +76,9 @@ impl App {
             .into_iter()
             .map(|p| {
                 let egress = egress.clone();
-
+                let local_clock = clock_handler.clone();
                 tokio::spawn(async move {
-                    let mut result_stream = p.listen().await;
+                    let mut result_stream = p.listen(local_clock).await;
 
                     while let Some(x) = result_stream.next().await {
                         if let MidiRouterMessageWrapper::RouterMessage(message) = x {

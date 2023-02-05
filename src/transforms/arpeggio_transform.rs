@@ -12,14 +12,14 @@ pub enum ArpeggioDirection {
 
 #[derive(Debug, Deserialize)]
 pub struct ArpeggioTransformOptions {
-    subdivision: u64,
+    subdivision: f64,
     direction: ArpeggioDirection,
     repeat: u8,
 }
 
 #[derive(Debug)]
 pub struct ArpeggioTransform {
-    tempo_subdiv: Option<u64>,
+    tempo_subdiv: Option<f64>,
     pressed_keys: Vec<MidiEvent>,
     current_index: usize,
 }
@@ -32,18 +32,10 @@ impl ArpeggioTransform {
             current_index: 0,
         }
     }
-
-    pub fn new(tempo_subdiv: Option<u64>) -> ArpeggioTransform {
-        ArpeggioTransform {
-            tempo_subdiv,
-            pressed_keys: vec![],
-            current_index: 0,
-        }
-    }
 }
 
 impl Transform for ArpeggioTransform {
-    fn get_tempo_subdiv(&self) -> Option<u64> {
+    fn get_tempo_subdiv(&self) -> Option<f64> {
         self.tempo_subdiv
     }
 

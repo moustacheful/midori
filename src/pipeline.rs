@@ -4,9 +4,13 @@ use serde::Deserialize;
 use std::pin::Pin;
 
 use crate::app::MidiRouterMessageWrapper;
+use crate::tempo::ClockHandler;
 use crate::transforms::transform::SerializedTransform;
-use crate::transforms::{ArpeggioTransform, FilterTransform, MapTransform, OutputTransform};
-use crate::{tempo, transforms::Transform};
+use crate::transforms::Transform;
+use crate::transforms::{
+    ArpeggioTransform, DistributeTransform, FilterTransform, InspectTransform, MapTransform,
+    OutputTransform,
+};
 
 #[derive(Debug, Deserialize)]
 pub struct PipelineOptions {
@@ -24,7 +28,7 @@ pub struct Pipeline {
 impl Pipeline {
     pub fn pipe_stream(
         origin_stream: Pin<Box<dyn Stream<Item = MidiRouterMessageWrapper> + Send>>,
-        tempo: &mut tempo::Tempo,
+        clock: &ClockHandler,
         mut transform: Box<dyn Transform + Sync + Send>,
     ) -> Pin<Box<dyn Stream<Item = MidiRouterMessageWrapper> + Send>> {
         let mut streams: Vec<Pin<Box<dyn Stream<Item = MidiRouterMessageWrapper> + Send>>> =
@@ -32,7 +36,7 @@ impl Pipeline {
 
         if let Some(subdiv) = transform.get_tempo_subdiv() {
             streams.push(Box::pin(
-                tempo.subdiv(subdiv).map(|_| MidiRouterMessageWrapper::Tick),
+                clock.create(subdiv).map(|_| MidiRouterMessageWrapper::Tick),
             ))
         }
 
@@ -72,8 +76,16 @@ impl Pipeline {
                             Box::new(MapTransform::from_config(config))
                         }
 
+                        SerializedTransform::Distribute(config) => {
+                            Box::new(DistributeTransform::from_config(config))
+                        }
+
                         SerializedTransform::Output(config) => {
                             Box::new(OutputTransform::from_config(config))
+                        }
+
+                        SerializedTransform::Inspect(config) => {
+                            Box::new(InspectTransform { prefix: config })
                         }
                     };
 
@@ -83,9 +95,8 @@ impl Pipeline {
         }
     }
 
-    pub async fn listen(self) -> impl Stream<Item = MidiRouterMessageWrapper> {
+    pub async fn listen(self, clock: ClockHandler) -> impl Stream<Item = MidiRouterMessageWrapper> {
         let name = self.name.clone();
-        let mut tempo = tempo::Tempo::new(60);
         let origin_stream: Pin<Box<dyn Stream<Item = MidiRouterMessageWrapper> + Send>> =
             Box::pin(self.rx.into_stream());
         println!("{:?} listening", &name);
@@ -93,7 +104,7 @@ impl Pipeline {
         self.transforms
             .into_iter()
             .fold(origin_stream, move |acc, transform| {
-                Self::pipe_stream(acc, &mut tempo, transform)
+                Self::pipe_stream(acc, &clock, transform)
             })
     }
 }
