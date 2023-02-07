@@ -1,5 +1,5 @@
 use super::Transform;
-use crate::midi_mapper::MidiRouterMessage;
+use crate::{midi_mapper::MidiRouterMessage, scheduler::SchedulerHandler};
 
 pub struct OutputTransform {
     output_device: String,
@@ -12,7 +12,11 @@ impl OutputTransform {
 }
 
 impl Transform for OutputTransform {
-    fn on_message(&mut self, mut v: MidiRouterMessage) -> Option<MidiRouterMessage> {
+    fn on_message(
+        &mut self,
+        mut v: MidiRouterMessage,
+        scheduler: &SchedulerHandler,
+    ) -> Option<MidiRouterMessage> {
         v.device = self.output_device.clone();
 
         Some(v)

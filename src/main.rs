@@ -3,6 +3,7 @@ mod midi_event;
 mod midi_mapper;
 mod parser;
 mod pipeline;
+mod scheduler;
 mod tempo;
 mod transforms;
 

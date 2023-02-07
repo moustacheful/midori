@@ -1,6 +1,8 @@
 use serde::Deserialize;
 
-use crate::{app::MidiRouterMessageWrapper, midi_mapper::MidiRouterMessage};
+use crate::{
+    app::MidiRouterMessageWrapper, midi_mapper::MidiRouterMessage, scheduler::SchedulerHandler,
+};
 
 use super::{
     arpeggio_transform::ArpeggioTransformOptions, distribute_transform::DistributeTransformOptions,
@@ -23,18 +25,26 @@ pub trait Transform {
     }
 
     // This triggers on what we subscribe as points of interest, e.g. an arpeggio?
-    fn on_tick(&mut self) -> Option<MidiRouterMessage> {
+    fn on_tick(&mut self, scheduler: &SchedulerHandler) -> Option<MidiRouterMessage> {
         None
     }
 
-    fn on_message(&mut self, message: MidiRouterMessage) -> Option<MidiRouterMessage> {
+    fn on_message(
+        &mut self,
+        message: MidiRouterMessage,
+        scheduler: &SchedulerHandler,
+    ) -> Option<MidiRouterMessage> {
         Some(message)
     }
 
-    fn process_message(&mut self, message: MidiRouterMessageWrapper) -> Option<MidiRouterMessage> {
+    fn process_message(
+        &mut self,
+        message: MidiRouterMessageWrapper,
+        scheduler: &SchedulerHandler,
+    ) -> Option<MidiRouterMessage> {
         match message {
-            MidiRouterMessageWrapper::Tick => self.on_tick(),
-            MidiRouterMessageWrapper::RouterMessage(message) => self.on_message(message),
+            MidiRouterMessageWrapper::Tick => self.on_tick(scheduler),
+            MidiRouterMessageWrapper::RouterMessage(message) => self.on_message(message, scheduler),
         }
     }
 }

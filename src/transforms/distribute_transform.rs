@@ -3,7 +3,7 @@ use std::{iter::Cycle, vec::IntoIter};
 use serde::Deserialize;
 
 use super::Transform;
-use crate::{midi_event::MidiEvent, midi_mapper::MidiRouterMessage};
+use crate::{midi_event::MidiEvent, midi_mapper::MidiRouterMessage, scheduler::SchedulerHandler};
 
 #[derive(Debug, Deserialize)]
 pub struct DistributeTransformOptions {
@@ -23,7 +23,11 @@ impl DistributeTransform {
 }
 
 impl Transform for DistributeTransform {
-    fn on_message(&mut self, mut message: MidiRouterMessage) -> Option<MidiRouterMessage> {
+    fn on_message(
+        &mut self,
+        mut message: MidiRouterMessage,
+        scheduler: &SchedulerHandler,
+    ) -> Option<MidiRouterMessage> {
         match message.event {
             MidiEvent::NoteOn { note, velocity, .. } => {
                 message.event = MidiEvent::NoteOn {

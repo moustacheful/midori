@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde::Deserialize;
 
 use super::Transform;
-use crate::{midi_event::MidiEvent, midi_mapper::MidiRouterMessage};
+use crate::{midi_event::MidiEvent, midi_mapper::MidiRouterMessage, scheduler::SchedulerHandler};
 
 #[derive(Debug, Deserialize)]
 pub struct MapTransformOptions {
@@ -26,7 +26,11 @@ impl MapTransform {
 }
 
 impl Transform for MapTransform {
-    fn on_message(&mut self, mut message: MidiRouterMessage) -> Option<MidiRouterMessage> {
+    fn on_message(
+        &mut self,
+        mut message: MidiRouterMessage,
+        scheduler: &SchedulerHandler,
+    ) -> Option<MidiRouterMessage> {
         let current_channel = message.event.get_channel();
 
         // Map channel

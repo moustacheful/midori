@@ -4,6 +4,7 @@ use serde::Deserialize;
 use std::pin::Pin;
 
 use crate::app::MidiRouterMessageWrapper;
+use crate::scheduler::Scheduler;
 use crate::tempo::ClockHandler;
 use crate::transforms::transform::SerializedTransform;
 use crate::transforms::Transform;
@@ -40,8 +41,10 @@ impl Pipeline {
             ))
         }
 
+        let (scheduler, scheduler_handler) = Scheduler::new();
+
         let stream = futures::stream::select_all::select_all(streams).filter_map(move |v| {
-            let result = match transform.process_message(v) {
+            let result = match transform.process_message(v, &scheduler_handler) {
                 Some(r) => Some(MidiRouterMessageWrapper::RouterMessage(r)),
                 None => None,
             };
@@ -49,7 +52,10 @@ impl Pipeline {
             future::ready(result)
         });
 
-        Box::pin(stream)
+        let output_streams: Vec<Pin<Box<dyn Stream<Item = MidiRouterMessageWrapper> + Send>>> =
+            vec![Box::pin(stream), Box::pin(scheduler.stream())];
+
+        Box::pin(futures::stream::select_all(output_streams))
     }
 
     pub fn from_config(config: PipelineOptions) -> Self {
