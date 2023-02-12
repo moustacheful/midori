@@ -110,7 +110,7 @@ impl MidiEvent {
     }
 
     pub fn get_note_off(&self) -> Option<MidiEvent> {
-        match self.clone() {
+        match *self {
             MidiEvent::NoteOn { channel, note, .. } => Some(MidiEvent::NoteOff {
                 channel,
                 note,
@@ -262,9 +262,9 @@ pub fn parse_midi_event(i: &[u8]) -> IResult<&[u8], MidiEvent> {
             (
                 i,
                 MidiEvent::NoteOff {
-                    channel: channel,
+                    channel,
                     note: note_code.into(),
-                    velocity: velocity,
+                    velocity,
                 },
             )
         }
@@ -275,7 +275,7 @@ pub fn parse_midi_event(i: &[u8]) -> IResult<&[u8], MidiEvent> {
             (
                 i,
                 MidiEvent::NoteOn {
-                    channel: channel,
+                    channel,
                     note: note_code.into(),
                     velocity,
                 },
@@ -288,7 +288,7 @@ pub fn parse_midi_event(i: &[u8]) -> IResult<&[u8], MidiEvent> {
             (
                 i,
                 MidiEvent::PolyphonicPressure {
-                    channel: channel,
+                    channel,
                     note: note_code.into(),
                     pressure,
                 },
@@ -301,7 +301,7 @@ pub fn parse_midi_event(i: &[u8]) -> IResult<&[u8], MidiEvent> {
             (
                 i,
                 MidiEvent::Controller {
-                    channel: channel,
+                    channel,
                     controller,
                     value,
                 },
@@ -313,7 +313,7 @@ pub fn parse_midi_event(i: &[u8]) -> IResult<&[u8], MidiEvent> {
             (
                 i,
                 MidiEvent::ProgramChange {
-                    channel: channel,
+                    channel,
                     program,
                 },
             )
@@ -324,7 +324,7 @@ pub fn parse_midi_event(i: &[u8]) -> IResult<&[u8], MidiEvent> {
             (
                 i,
                 MidiEvent::ChannelPressure {
-                    channel: channel,
+                    channel,
                     pressure,
                 },
             )
@@ -336,7 +336,7 @@ pub fn parse_midi_event(i: &[u8]) -> IResult<&[u8], MidiEvent> {
             (
                 i,
                 MidiEvent::PitchBend {
-                    channel: channel,
+                    channel,
                     lsb,
                     msb,
                 },

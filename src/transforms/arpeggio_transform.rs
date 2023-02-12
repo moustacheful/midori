@@ -42,7 +42,7 @@ impl Transform for ArpeggioTransform {
     }
 
     fn on_tick(&mut self, scheduler: &SchedulerHandler) -> Option<MidiRouterMessage> {
-        if self.pressed_keys.len() == 0 {
+        if self.pressed_keys.is_empty() {
             return None;
         }
 
@@ -50,16 +50,14 @@ impl Transform for ArpeggioTransform {
             .pressed_keys
             .get(self.current_index % self.pressed_keys.len());
 
-        if let None = current_key {
-            return None;
-        }
+        current_key?;
 
         let found = current_key.unwrap();
         self.current_index += 1;
 
         let next_message = MidiRouterMessage {
             device: "self".to_string(),
-            event: found.clone(),
+            event: *found,
         };
 
         let next_note_off = next_message.event.get_note_off();
@@ -80,7 +78,7 @@ impl Transform for ArpeggioTransform {
     fn on_message(
         &mut self,
         message: MidiRouterMessage,
-        scheduler: &SchedulerHandler,
+        _scheduler: &SchedulerHandler,
     ) -> Option<MidiRouterMessage> {
         match message.event {
             MidiEvent::NoteOff { note, .. } => {
@@ -91,14 +89,14 @@ impl Transform for ArpeggioTransform {
                     _ => true,
                 });
                 // self.current_index = 0;
-                return None;
+                None
             }
             MidiEvent::NoteOn { .. } => {
                 self.pressed_keys.push(message.event);
                 self.current_index = 0;
-                return None;
+                None
             }
-            _ => return Some(message),
+            _ => Some(message),
         }
     }
 }

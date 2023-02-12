@@ -40,10 +40,10 @@ mod tests {
     ];
 
     cases.iter().for_each(|message| {
-      let parsed = MidiEvent::from_midi(&message).unwrap();
+      let parsed = MidiEvent::from_midi(message).unwrap();
 
       assert_eq!(
-        compare_u8_slices(parsed.to_midi().unwrap().as_ref(), &message),
+        compare_u8_slices(parsed.to_midi().unwrap().as_ref(), message),
         cmp::Ordering::Equal
       );
     })

@@ -25,14 +25,14 @@ pub trait Transform {
     }
 
     // This triggers on what we subscribe as points of interest, e.g. an arpeggio?
-    fn on_tick(&mut self, scheduler: &SchedulerHandler) -> Option<MidiRouterMessage> {
+    fn on_tick(&mut self, _scheduler: &SchedulerHandler) -> Option<MidiRouterMessage> {
         None
     }
 
     fn on_message(
         &mut self,
         message: MidiRouterMessage,
-        scheduler: &SchedulerHandler,
+        _scheduler: &SchedulerHandler,
     ) -> Option<MidiRouterMessage> {
         Some(message)
     }

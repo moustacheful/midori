@@ -15,7 +15,7 @@ impl Transform for OutputTransform {
     fn on_message(
         &mut self,
         mut v: MidiRouterMessage,
-        scheduler: &SchedulerHandler,
+        _scheduler: &SchedulerHandler,
     ) -> Option<MidiRouterMessage> {
         v.device = self.output_device.clone();
 

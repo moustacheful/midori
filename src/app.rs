@@ -35,7 +35,7 @@ impl App {
             pipelines: config
                 .pipelines
                 .into_iter()
-                .map(|pipeline_config| Pipeline::from_config(pipeline_config))
+                .map(Pipeline::from_config)
                 .collect(),
         }
     }

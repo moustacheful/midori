@@ -74,7 +74,7 @@ impl MidiMapper {
                 port
             })
             .find(|port| midi_io.port_name(port).unwrap().starts_with(&name))
-            .expect(&format!("Could not find port {}", name));
+            .unwrap_or_else(|| panic!("Could not find port {}", name));
 
         Ok(port.clone())
     }
@@ -93,7 +93,7 @@ impl MidiMapper {
     ) -> Result<MidiInputConnection<()>, ConnectError<MidiInput>> {
         let midi_in = MidiInput::new("midir forwarding input").unwrap();
 
-        let port = Self::select_port_by_name(&midi_in, name.clone()).unwrap();
+        let port = Self::select_port_by_name(&midi_in, name).unwrap();
         let local_tx = self.midi_sender.clone();
 
         midi_in.connect(
@@ -114,7 +114,7 @@ impl MidiMapper {
 
     pub fn add_output(&mut self, device_name: String, alias: String) {
         self.output_connections
-            .insert(alias.clone(), self.connect_output(device_name).unwrap());
+            .insert(alias, self.connect_output(device_name).unwrap());
     }
 
     fn connect_output(

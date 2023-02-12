@@ -26,7 +26,7 @@ impl Transform for DistributeTransform {
     fn on_message(
         &mut self,
         mut message: MidiRouterMessage,
-        scheduler: &SchedulerHandler,
+        _scheduler: &SchedulerHandler,
     ) -> Option<MidiRouterMessage> {
         match message.event {
             MidiEvent::NoteOn { note, velocity, .. } => {

@@ -44,10 +44,7 @@ impl Pipeline {
         let (scheduler, scheduler_handler) = Scheduler::new();
 
         let stream = futures::stream::select_all::select_all(streams).filter_map(move |v| {
-            let result = match transform.process_message(v, &scheduler_handler) {
-                Some(r) => Some(MidiRouterMessageWrapper::RouterMessage(r)),
-                None => None,
-            };
+            let result = transform.process_message(v, &scheduler_handler).map(MidiRouterMessageWrapper::RouterMessage);
 
             future::ready(result)
         });

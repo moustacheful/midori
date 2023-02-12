@@ -23,7 +23,7 @@ impl Transform for FilterTransform {
     fn on_message(
         &mut self,
         message: MidiRouterMessage,
-        scheduler: &SchedulerHandler,
+        _scheduler: &SchedulerHandler,
     ) -> Option<MidiRouterMessage> {
         let message_channel = message.event.get_channel();
 

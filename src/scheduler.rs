@@ -36,9 +36,9 @@ impl Scheduler {
     }
 
     pub fn stream(self) -> impl Stream<Item = MidiRouterMessageWrapper> {
-        self.receiver.clone().into_stream().map(|m| {
-            println!("sending noteoff!");
-            MidiRouterMessageWrapper::RouterMessage(m)
-        })
+        self.receiver
+            
+            .into_stream()
+            .map(MidiRouterMessageWrapper::RouterMessage)
     }
 }

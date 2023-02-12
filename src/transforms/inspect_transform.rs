@@ -9,7 +9,7 @@ impl Transform for InspectTransform {
     fn on_message(
         &mut self,
         v: MidiRouterMessage,
-        scheduler: &SchedulerHandler,
+        _scheduler: &SchedulerHandler,
     ) -> Option<MidiRouterMessage> {
         println!("[{:?}]: {:?}", self.prefix, v);
 

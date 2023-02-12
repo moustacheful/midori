@@ -19,8 +19,8 @@ pub struct MapTransform {
 impl MapTransform {
     pub fn from_config(options: MapTransformOptions) -> Self {
         Self {
-            channels: HashMap::from_iter(options.channels.unwrap_or(vec![])),
-            cc: HashMap::from_iter(options.cc.unwrap_or(vec![])),
+            channels: HashMap::from_iter(options.channels.unwrap_or_default()),
+            cc: HashMap::from_iter(options.cc.unwrap_or_default()),
         }
     }
 }
@@ -29,7 +29,7 @@ impl Transform for MapTransform {
     fn on_message(
         &mut self,
         mut message: MidiRouterMessage,
-        scheduler: &SchedulerHandler,
+        _scheduler: &SchedulerHandler,
     ) -> Option<MidiRouterMessage> {
         let current_channel = message.event.get_channel();
 
