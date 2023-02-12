@@ -12,20 +12,6 @@ use nom::{
 use std::error::Error;
 
 impl MidiEvent {
-    pub fn is(&self, x: &MidiEventIdentity) -> bool {
-        match self {
-            MidiEvent::NoteOff { .. } => matches!(x, MidiEventIdentity::NoteOff),
-            MidiEvent::NoteOn { .. } => matches!(x, MidiEventIdentity::NoteOn),
-            MidiEvent::PolyphonicPressure { .. } => {
-                matches!(x, MidiEventIdentity::PolyphonicPressure)
-            }
-            MidiEvent::Controller { .. } => matches!(x, MidiEventIdentity::Controller),
-            MidiEvent::ProgramChange { .. } => matches!(x, MidiEventIdentity::ProgramChange),
-            MidiEvent::ChannelPressure { .. } => matches!(x, MidiEventIdentity::ChannelPressure),
-            MidiEvent::PitchBend { .. } => matches!(x, MidiEventIdentity::PitchBend),
-        }
-    }
-
     pub fn from_midi(i: &[u8]) -> Result<Self, Box<dyn Error>> {
         let (_i, result) = parse_midi_event(i).expect("Could not parse MIDI message");
 
@@ -189,16 +175,6 @@ impl MidiEvent {
     }
 }
 
-pub enum MidiEventIdentity {
-    NoteOn,
-    NoteOff,
-    PolyphonicPressure,
-    Controller,
-    ProgramChange,
-    ChannelPressure,
-    PitchBend,
-}
-
 /// A midi event
 ///
 /// Normally, the majority of messages will be of this type. They are the key messages for
@@ -310,37 +286,18 @@ pub fn parse_midi_event(i: &[u8]) -> IResult<&[u8], MidiEvent> {
 
         0xC => {
             let (i, program) = utils::be_u7(i)?;
-            (
-                i,
-                MidiEvent::ProgramChange {
-                    channel,
-                    program,
-                },
-            )
+            (i, MidiEvent::ProgramChange { channel, program })
         }
 
         0xD => {
             let (i, pressure) = utils::be_u7(i)?;
-            (
-                i,
-                MidiEvent::ChannelPressure {
-                    channel,
-                    pressure,
-                },
-            )
+            (i, MidiEvent::ChannelPressure { channel, pressure })
         }
 
         0xE => {
             let (i, lsb) = utils::be_u7(i)?;
             let (i, msb) = utils::be_u7(i)?;
-            (
-                i,
-                MidiEvent::PitchBend {
-                    channel,
-                    lsb,
-                    msb,
-                },
-            )
+            (i, MidiEvent::PitchBend { channel, lsb, msb })
         }
 
         0xFA => {

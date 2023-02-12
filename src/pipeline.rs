@@ -23,14 +23,14 @@ pub struct Pipeline {
     pub rx: flume::Receiver<MidiRouterMessageWrapper>,
     pub tx: flume::Sender<MidiRouterMessageWrapper>,
     pub name: String,
-    pub transforms: Vec<Box<dyn Transform + Sync + Send>>,
+    pub transforms: Vec<Box<dyn Transform + Send>>,
 }
 
 impl Pipeline {
     pub fn pipe_stream(
         origin_stream: Pin<Box<dyn Stream<Item = MidiRouterMessageWrapper> + Send>>,
         clock: &ClockHandler,
-        mut transform: Box<dyn Transform + Sync + Send>,
+        mut transform: Box<dyn Transform + Send>,
     ) -> Pin<Box<dyn Stream<Item = MidiRouterMessageWrapper> + Send>> {
         let mut streams: Vec<Pin<Box<dyn Stream<Item = MidiRouterMessageWrapper> + Send>>> =
             vec![origin_stream];
@@ -44,7 +44,9 @@ impl Pipeline {
         let (scheduler, scheduler_handler) = Scheduler::new();
 
         let stream = futures::stream::select_all::select_all(streams).filter_map(move |v| {
-            let result = transform.process_message(v, &scheduler_handler).map(MidiRouterMessageWrapper::RouterMessage);
+            let result = transform
+                .process_message(v, &scheduler_handler)
+                .map(MidiRouterMessageWrapper::RouterMessage);
 
             future::ready(result)
         });
@@ -66,7 +68,7 @@ impl Pipeline {
                 .transforms
                 .into_iter()
                 .map(|transform_config| {
-                    let transform: Box<dyn Transform + Sync + Send> = match transform_config {
+                    let transform: Box<dyn Transform + Send> = match transform_config {
                         SerializedTransform::Filter(config) => {
                             Box::new(FilterTransform::from_config(config))
                         }
