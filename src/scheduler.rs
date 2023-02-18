@@ -1,19 +1,19 @@
 use futures::{Stream, StreamExt};
 use std::time::Duration;
 
-use crate::{app::MidiRouterMessageWrapper, midi_mapper::MidiRouterMessage};
+use crate::{app::MIDIMapperEvent, midi_event::MIDIRouterEvent};
 
 #[derive(Debug, Clone)]
 pub struct SchedulerHandler {
-    pub sender: flume::Sender<MidiRouterMessage>,
+    pub sender: flume::Sender<MIDIRouterEvent>,
 }
 
 impl SchedulerHandler {
-    pub fn send_now(&self, message: MidiRouterMessage) {
+    pub fn send_now(&self, message: MIDIRouterEvent) {
         self.sender.send(message).unwrap();
     }
 
-    pub fn send_later(&self, message: MidiRouterMessage, delay_ms: u64) {
+    pub fn send_later(&self, message: MIDIRouterEvent, delay_ms: u64) {
         let sender = self.sender.clone();
 
         tokio::spawn(async move {
@@ -25,20 +25,19 @@ impl SchedulerHandler {
 }
 
 pub struct Scheduler {
-    pub receiver: flume::Receiver<MidiRouterMessage>,
+    pub receiver: flume::Receiver<MIDIRouterEvent>,
 }
 
 impl Scheduler {
     pub fn new() -> (Self, SchedulerHandler) {
-        let (sender, receiver) = flume::unbounded::<MidiRouterMessage>();
+        let (sender, receiver) = flume::unbounded::<MIDIRouterEvent>();
 
         (Self { receiver }, SchedulerHandler { sender })
     }
 
-    pub fn stream(self) -> impl Stream<Item = MidiRouterMessageWrapper> {
+    pub fn stream(self) -> impl Stream<Item = MIDIMapperEvent> {
         self.receiver
-            
             .into_stream()
-            .map(MidiRouterMessageWrapper::RouterMessage)
+            .map(MIDIMapperEvent::RouterMessage)
     }
 }

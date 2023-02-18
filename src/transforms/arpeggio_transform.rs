@@ -1,5 +1,8 @@
 use super::Transform;
-use crate::{midi_event::MidiEvent, midi_mapper::MidiRouterMessage, scheduler::SchedulerHandler};
+use crate::{
+    midi_event::{MIDIEvent, MIDIRouterEvent, NoteEvent},
+    scheduler::SchedulerHandler,
+};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -20,7 +23,7 @@ pub struct ArpeggioTransformOptions {
 #[derive(Debug)]
 pub struct ArpeggioTransform {
     tempo_subdiv: Option<f64>,
-    pressed_keys: Vec<MidiEvent>,
+    pressed_keys: Vec<NoteEvent>,
     current_index: usize,
     note_duration: u64,
 }
@@ -41,7 +44,7 @@ impl Transform for ArpeggioTransform {
         self.tempo_subdiv
     }
 
-    fn on_tick(&mut self, scheduler: &SchedulerHandler) -> Option<MidiRouterMessage> {
+    fn on_tick(&mut self, scheduler: &SchedulerHandler) -> Option<MIDIRouterEvent> {
         if self.pressed_keys.is_empty() {
             return None;
         }
@@ -53,46 +56,39 @@ impl Transform for ArpeggioTransform {
         current_key?;
 
         let found = current_key.unwrap();
+        let note_off = found.get_note_off();
+
         self.current_index += 1;
 
-        let next_message = MidiRouterMessage {
+        let next_message = MIDIRouterEvent {
             device: "self".to_string(),
-            event: *found,
+            event: MIDIEvent::NoteOn(found.to_owned()),
         };
 
-        let next_note_off = next_message.event.get_note_off();
-
-        if let Some(event) = next_note_off {
-            scheduler.send_later(
-                MidiRouterMessage {
-                    device: "self".to_string(),
-                    event,
-                },
-                self.note_duration,
-            )
-        }
+        scheduler.send_later(
+            MIDIRouterEvent {
+                device: "self".to_string(),
+                event: MIDIEvent::NoteOff(note_off),
+            },
+            self.note_duration,
+        );
 
         Some(next_message)
     }
 
     fn on_message(
         &mut self,
-        message: MidiRouterMessage,
+        message: MIDIRouterEvent,
         _scheduler: &SchedulerHandler,
-    ) -> Option<MidiRouterMessage> {
+    ) -> Option<MIDIRouterEvent> {
         match message.event {
-            MidiEvent::NoteOff { note, .. } => {
-                self.pressed_keys.retain(|v| match v {
-                    MidiEvent::NoteOn {
-                        note: stored_note, ..
-                    } => *stored_note != note,
-                    _ => true,
-                });
+            MIDIEvent::NoteOff(note) => {
+                self.pressed_keys.retain(|stored_note| *stored_note != note);
                 // self.current_index = 0;
                 None
             }
-            MidiEvent::NoteOn { .. } => {
-                self.pressed_keys.push(message.event);
+            MIDIEvent::NoteOn(note) => {
+                self.pressed_keys.push(note);
                 self.current_index = 0;
                 None
             }

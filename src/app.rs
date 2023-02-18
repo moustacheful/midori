@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    midi_mapper::MidiRouterMessage,
+    midi_event::MIDIRouterEvent,
     pipeline::{Pipeline, PipelineOptions},
     tempo::Clock,
 };
@@ -16,14 +16,14 @@ pub struct AppConfig {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub enum MidiRouterMessageWrapper {
+pub enum MIDIMapperEvent {
     Tick,
-    RouterMessage(MidiRouterMessage),
+    RouterMessage(MIDIRouterEvent),
 }
 
 pub struct App {
-    pub egress: Option<flume::Sender<MidiRouterMessage>>,
-    pub ingress: Option<flume::Receiver<MidiRouterMessage>>,
+    pub egress: Option<flume::Sender<MIDIRouterEvent>>,
+    pub ingress: Option<flume::Receiver<MIDIRouterEvent>>,
     pub pipelines: Vec<Pipeline>,
 }
 
@@ -40,11 +40,11 @@ impl App {
         }
     }
 
-    pub fn set_ingress(&mut self, ingress: flume::Receiver<MidiRouterMessage>) {
+    pub fn set_ingress(&mut self, ingress: flume::Receiver<MIDIRouterEvent>) {
         self.ingress = Some(ingress);
     }
 
-    pub fn set_egress(&mut self, egress: flume::Sender<MidiRouterMessage>) {
+    pub fn set_egress(&mut self, egress: flume::Sender<MIDIRouterEvent>) {
         self.egress = Some(egress);
     }
 
@@ -56,15 +56,14 @@ impl App {
         tokio::spawn(async move { clock.start().await });
 
         // Collect each pipelines' sender
-        let txs: Vec<flume::Sender<MidiRouterMessageWrapper>> =
+        let txs: Vec<flume::Sender<MIDIMapperEvent>> =
             self.pipelines.iter().map(|p| p.tx.clone()).collect::<_>();
 
         // Broadcast events from ingress to each pipeline sender
         tokio::spawn(async move {
             while let Ok(x) = ingress.recv_async().await {
                 txs.iter().for_each(|tx| {
-                    tx.send(MidiRouterMessageWrapper::RouterMessage(x.clone()))
-                        .unwrap();
+                    tx.send(MIDIMapperEvent::RouterMessage(x.clone())).unwrap();
                 });
             }
         });
@@ -81,7 +80,7 @@ impl App {
                     let mut result_stream = p.listen(local_clock).await;
 
                     while let Some(x) = result_stream.next().await {
-                        if let MidiRouterMessageWrapper::RouterMessage(message) = x {
+                        if let MIDIMapperEvent::RouterMessage(message) = x {
                             egress.send(message).unwrap();
                         }
                     }

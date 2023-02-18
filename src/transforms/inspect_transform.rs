@@ -1,5 +1,5 @@
 use super::Transform;
-use crate::{midi_mapper::MidiRouterMessage, scheduler::SchedulerHandler};
+use crate::{midi_event::MIDIRouterEvent, scheduler::SchedulerHandler};
 
 pub struct InspectTransform {
     pub prefix: String,
@@ -8,9 +8,9 @@ pub struct InspectTransform {
 impl Transform for InspectTransform {
     fn on_message(
         &mut self,
-        v: MidiRouterMessage,
+        v: MIDIRouterEvent,
         _scheduler: &SchedulerHandler,
-    ) -> Option<MidiRouterMessage> {
+    ) -> Option<MIDIRouterEvent> {
         println!("[{:?}]: {:?}", self.prefix, v);
 
         Some(v)

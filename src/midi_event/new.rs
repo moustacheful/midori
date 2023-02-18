@@ -8,7 +8,7 @@ use super::utils;
 
 trait ToMidi {
     fn to_midi(&self) -> Vec<u8> {
-        todo!()
+        unimplemented!()
     }
 }
 

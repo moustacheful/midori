@@ -3,7 +3,10 @@ use std::{iter::Cycle, vec::IntoIter};
 use serde::Deserialize;
 
 use super::Transform;
-use crate::{midi_event::MidiEvent, midi_mapper::MidiRouterMessage, scheduler::SchedulerHandler};
+use crate::{
+    midi_event::{MIDIEvent, MIDIRouterEvent},
+    scheduler::SchedulerHandler,
+};
 
 #[derive(Debug, Deserialize)]
 pub struct DistributeTransformOptions {
@@ -25,16 +28,13 @@ impl DistributeTransform {
 impl Transform for DistributeTransform {
     fn on_message(
         &mut self,
-        mut message: MidiRouterMessage,
+        mut message: MIDIRouterEvent,
         _scheduler: &SchedulerHandler,
-    ) -> Option<MidiRouterMessage> {
+    ) -> Option<MIDIRouterEvent> {
         match message.event {
-            MidiEvent::NoteOn { note, velocity, .. } => {
-                message.event = MidiEvent::NoteOn {
-                    note,
-                    velocity,
-                    channel: self.between_iter.next().unwrap(),
-                };
+            MIDIEvent::NoteOn(ref mut note) => {
+                note.channel = self.between_iter.next().unwrap();
+
                 Some(message)
             }
             _ => None,

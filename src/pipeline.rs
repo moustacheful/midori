@@ -3,7 +3,7 @@ use futures::{future, Stream};
 use serde::Deserialize;
 use std::pin::Pin;
 
-use crate::app::MidiRouterMessageWrapper;
+use crate::app::MIDIMapperEvent;
 use crate::scheduler::Scheduler;
 use crate::tempo::ClockHandler;
 use crate::transforms::transform::SerializedTransform;
@@ -20,24 +20,24 @@ pub struct PipelineOptions {
 }
 
 pub struct Pipeline {
-    pub rx: flume::Receiver<MidiRouterMessageWrapper>,
-    pub tx: flume::Sender<MidiRouterMessageWrapper>,
+    pub rx: flume::Receiver<MIDIMapperEvent>,
+    pub tx: flume::Sender<MIDIMapperEvent>,
     pub name: String,
     pub transforms: Vec<Box<dyn Transform + Send>>,
 }
 
 impl Pipeline {
     pub fn pipe_stream(
-        origin_stream: Pin<Box<dyn Stream<Item = MidiRouterMessageWrapper> + Send>>,
+        origin_stream: Pin<Box<dyn Stream<Item = MIDIMapperEvent> + Send>>,
         clock: &ClockHandler,
         mut transform: Box<dyn Transform + Send>,
-    ) -> Pin<Box<dyn Stream<Item = MidiRouterMessageWrapper> + Send>> {
-        let mut streams: Vec<Pin<Box<dyn Stream<Item = MidiRouterMessageWrapper> + Send>>> =
+    ) -> Pin<Box<dyn Stream<Item = MIDIMapperEvent> + Send>> {
+        let mut streams: Vec<Pin<Box<dyn Stream<Item = MIDIMapperEvent> + Send>>> =
             vec![origin_stream];
 
         if let Some(subdiv) = transform.get_tempo_subdiv() {
             streams.push(Box::pin(
-                clock.create(subdiv).map(|_| MidiRouterMessageWrapper::Tick),
+                clock.create(subdiv).map(|_| MIDIMapperEvent::Tick),
             ))
         }
 
@@ -46,19 +46,19 @@ impl Pipeline {
         let stream = futures::stream::select_all::select_all(streams).filter_map(move |v| {
             let result = transform
                 .process_message(v, &scheduler_handler)
-                .map(MidiRouterMessageWrapper::RouterMessage);
+                .map(MIDIMapperEvent::RouterMessage);
 
             future::ready(result)
         });
 
-        let output_streams: Vec<Pin<Box<dyn Stream<Item = MidiRouterMessageWrapper> + Send>>> =
+        let output_streams: Vec<Pin<Box<dyn Stream<Item = MIDIMapperEvent> + Send>>> =
             vec![Box::pin(stream), Box::pin(scheduler.stream())];
 
         Box::pin(futures::stream::select_all(output_streams))
     }
 
     pub fn from_config(config: PipelineOptions) -> Self {
-        let (tx, rx) = flume::unbounded::<MidiRouterMessageWrapper>();
+        let (tx, rx) = flume::unbounded::<MIDIMapperEvent>();
 
         Self {
             tx,
@@ -100,9 +100,9 @@ impl Pipeline {
         }
     }
 
-    pub async fn listen(self, clock: ClockHandler) -> impl Stream<Item = MidiRouterMessageWrapper> {
+    pub async fn listen(self, clock: ClockHandler) -> impl Stream<Item = MIDIMapperEvent> {
         let name = self.name.clone();
-        let origin_stream: Pin<Box<dyn Stream<Item = MidiRouterMessageWrapper> + Send>> =
+        let origin_stream: Pin<Box<dyn Stream<Item = MIDIMapperEvent> + Send>> =
             Box::pin(self.rx.into_stream());
         println!("{:?} listening", &name);
 
