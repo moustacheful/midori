@@ -1,6 +1,7 @@
 // Based on: https://github.com/derekdreery/nom-midi-rs/
 #[cfg(test)]
 mod new;
+mod tests;
 mod types;
 mod utils;
 pub use self::types::Note;
@@ -25,7 +26,15 @@ pub struct NoteEvent {
 
 impl ToMidi for NoteEvent {
     fn to_midi(&self) -> Vec<u8> {
-        vec![0x80 + self.channel, self.note.into(), self.velocity]
+        // We treat note events internally as the same entity
+        // The only difference is the velocity of the note, where
+        // 0 is equivalent to a note off.
+        // Is this a bad idea? makes interfaces easier.
+        if self.velocity == 0 {
+            vec![0x80 + self.channel, self.note.into(), self.velocity]
+        } else {
+            vec![0x90 + self.channel, self.note.into(), self.velocity]
+        }
     }
 }
 

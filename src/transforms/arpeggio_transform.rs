@@ -82,9 +82,13 @@ impl Transform for ArpeggioTransform {
         _scheduler: &SchedulerHandler,
     ) -> Option<MIDIRouterEvent> {
         match message.event {
-            MIDIEvent::NoteOff(note) => {
-                self.pressed_keys.retain(|stored_note| *stored_note != note);
-                // self.current_index = 0;
+            MIDIEvent::NoteOff(NoteEvent { note, .. }) => {
+                self.pressed_keys.retain(
+                    |NoteEvent {
+                         note: stored_note, ..
+                     }| *stored_note != note,
+                );
+                self.current_index = 0;
                 None
             }
             MIDIEvent::NoteOn(note) => {
