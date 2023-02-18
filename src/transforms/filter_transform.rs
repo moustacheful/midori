@@ -1,5 +1,5 @@
 use super::Transform;
-use crate::{midi_mapper::MidiRouterMessage, scheduler::SchedulerHandler};
+use crate::{midi_event::MIDIRouterEvent, scheduler::SchedulerHandler};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -22,12 +22,12 @@ impl FilterTransform {
 impl Transform for FilterTransform {
     fn on_message(
         &mut self,
-        message: MidiRouterMessage,
+        message: MIDIRouterEvent,
         _scheduler: &SchedulerHandler,
-    ) -> Option<MidiRouterMessage> {
+    ) -> Option<MIDIRouterEvent> {
         let message_channel = message.event.get_channel();
 
-        if self.channels.contains(message_channel) {
+        if self.channels.contains(&message_channel) {
             return Some(message);
         }
 

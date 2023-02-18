@@ -3,7 +3,10 @@ use std::collections::HashMap;
 use serde::Deserialize;
 
 use super::Transform;
-use crate::{midi_event::MidiEvent, midi_mapper::MidiRouterMessage, scheduler::SchedulerHandler};
+use crate::{
+    midi_event::{MIDIEvent, MIDIRouterEvent},
+    scheduler::SchedulerHandler,
+};
 
 #[derive(Debug, Deserialize)]
 pub struct MapTransformOptions {
@@ -28,29 +31,20 @@ impl MapTransform {
 impl Transform for MapTransform {
     fn on_message(
         &mut self,
-        mut message: MidiRouterMessage,
+        mut message: MIDIRouterEvent,
         _scheduler: &SchedulerHandler,
-    ) -> Option<MidiRouterMessage> {
+    ) -> Option<MIDIRouterEvent> {
         let current_channel = message.event.get_channel();
 
         // Map channel
-        if let Some(target_channel) = self.channels.get(current_channel) {
-            message.event = message.event.set_channel(*target_channel);
+        if let Some(target_channel) = self.channels.get(&current_channel) {
+            message.event.set_channel(*target_channel);
         }
 
         // Map CCs
-        if let MidiEvent::Controller {
-            controller,
-            channel,
-            value,
-        } = message.event
-        {
-            if let Some(target_cc) = self.cc.get(&controller) {
-                message.event = MidiEvent::Controller {
-                    controller: *target_cc,
-                    channel,
-                    value,
-                }
+        if let MIDIEvent::Controller(ref mut controller) = message.event {
+            if let Some(target_cc) = self.cc.get(&controller.controller) {
+                controller.controller = *target_cc;
             }
         }
 

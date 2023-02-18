@@ -2,24 +2,15 @@ use midir::{
     ConnectError, MidiIO, MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection,
 };
 
-use crate::{midi_event::MidiEvent, App};
+use crate::{
+    midi_event::{MIDIEvent, MIDIRouterEvent, ToMidi},
+    App,
+};
 use std::{collections::HashMap, error::Error};
 
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct MidiRouterMessage {
-    pub device: String,
-    pub event: MidiEvent,
-}
-
-impl std::fmt::Display for MidiRouterMessage {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}] {}", self.device, self.event.to_string())
-    }
-}
-
 pub struct MidiMapper {
-    midi_sender: flume::Sender<MidiRouterMessage>,
-    ingress: flume::Receiver<MidiRouterMessage>,
+    midi_sender: flume::Sender<MIDIRouterEvent>,
+    ingress: flume::Receiver<MIDIRouterEvent>,
 
     input_connections: HashMap<String, MidiInputConnection<()>>,
     output_connections: HashMap<String, MidiOutputConnection>,
@@ -32,14 +23,13 @@ impl MidiMapper {
         MidiMapper {
             midi_sender: tx,
             ingress: rx,
-            // Should these be a hashmap?
             input_connections: HashMap::new(),
             output_connections: HashMap::new(),
         }
     }
 
     pub fn start(&mut self, mut app: App) {
-        let (egress_sender, egress_receiver) = flume::unbounded::<MidiRouterMessage>();
+        let (egress_sender, egress_receiver) = flume::unbounded::<MIDIRouterEvent>();
 
         app.set_egress(egress_sender);
         app.set_ingress(self.ingress.clone());
@@ -53,7 +43,7 @@ impl MidiMapper {
 
             match self.output_connections.get_mut(&message.device) {
                 Some(output) => {
-                    let midi_message = message.event.to_midi().unwrap();
+                    let midi_message = message.event.to_midi();
                     output.send(&midi_message).unwrap();
                 }
                 None => todo!(),
@@ -100,9 +90,10 @@ impl MidiMapper {
             &port,
             "midir forward",
             move |_stamp, message, _| {
-                let midi_event = MidiEvent::from_midi(message).unwrap();
+                let midi_event = MIDIEvent::try_from(message).expect("Could not parse midi event!");
+
                 local_tx
-                    .send(MidiRouterMessage {
+                    .send(MIDIRouterEvent {
                         device: alias.clone(),
                         event: midi_event,
                     })
