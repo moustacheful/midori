@@ -39,9 +39,9 @@ impl ToMidi for NoteEvent {
         // 0 is equivalent to a note off.
         // Is this a bad idea? makes interfaces easier.
         if self.velocity == 0 {
-            vec![0x80 + self.channel, self.note.into(), self.velocity]
+            vec![0x80 + self.channel, self.note, self.velocity]
         } else {
-            vec![0x90 + self.channel, self.note.into(), self.velocity]
+            vec![0x90 + self.channel, self.note, self.velocity]
         }
     }
 }
@@ -77,7 +77,7 @@ pub struct PolyphonicPressure {
 
 impl ToMidi for PolyphonicPressure {
     fn to_midi(&self) -> Vec<u8> {
-        vec![0xA0 + self.channel, self.note.into(), self.pressure]
+        vec![0xA0 + self.channel, self.note, self.pressure]
     }
 }
 
@@ -214,40 +214,40 @@ pub fn parse_midi_event(i: &[u8]) -> IResult<&[u8], MIDIEvent> {
     let result = match event_type {
         0x8 => {
             let (i, note_code) = utils::be_u7(i)?;
-            let (i, velocity) = utils::be_u7(i)?;
+            let (_i, velocity) = utils::be_u7(i)?;
 
             MIDIEvent::NoteOff(NoteEvent {
                 channel,
-                note: note_code.into(),
+                note: note_code,
                 velocity,
             })
         }
 
         0x9 => {
             let (i, note_code) = utils::be_u7(i)?;
-            let (i, velocity) = utils::be_u7(i)?;
+            let (_i, velocity) = utils::be_u7(i)?;
 
             MIDIEvent::NoteOn(NoteEvent {
                 channel,
-                note: note_code.into(),
+                note: note_code,
                 velocity,
             })
         }
 
         0xA => {
             let (i, note_code) = utils::be_u7(i)?;
-            let (i, pressure) = utils::be_u7(i)?;
+            let (_i, pressure) = utils::be_u7(i)?;
 
             MIDIEvent::PolyphonicPressure(PolyphonicPressure {
                 channel,
-                note: note_code.into(),
+                note: note_code,
                 pressure,
             })
         }
 
         0xB => {
             let (i, controller) = be_u8(i)?;
-            let (i, value) = utils::be_u7(i)?;
+            let (_i, value) = utils::be_u7(i)?;
 
             MIDIEvent::Controller(Controller {
                 channel,
@@ -257,20 +257,20 @@ pub fn parse_midi_event(i: &[u8]) -> IResult<&[u8], MIDIEvent> {
         }
 
         0xC => {
-            let (i, program) = utils::be_u7(i)?;
+            let (_i, program) = utils::be_u7(i)?;
 
             MIDIEvent::ProgramChange(ProgramChange { channel, program })
         }
 
         0xD => {
-            let (i, pressure) = utils::be_u7(i)?;
+            let (_i, pressure) = utils::be_u7(i)?;
 
             MIDIEvent::ChannelPressure(ChannelPressure { channel, pressure })
         }
 
         0xE => {
             let (i, lsb) = utils::be_u7(i)?;
-            let (i, msb) = utils::be_u7(i)?;
+            let (_i, msb) = utils::be_u7(i)?;
 
             MIDIEvent::PitchBend(PitchBend { channel, lsb, msb })
         }

@@ -30,7 +30,7 @@ impl<I> Cycle<I> {
             direction,
             play_head,
             is_odd: false,
-            repeat: repeat.or(Some(1)).unwrap(),
+            repeat: repeat.unwrap_or(1),
             repeat_cycle: repeat.map_or((1..2).cycle(), |n| (1..n + 1).cycle()),
         }
     }
@@ -48,46 +48,42 @@ impl<I> Cycle<I> {
             return current;
         }
 
+        let max = self.vec.len().saturating_sub(1);
         // Move the play head for the next iteration
-        self.play_head = {
-            let max = self.vec.len() - 1;
-            let next = match self.direction {
-                CycleDirection::Forward => {
-                    if self.play_head >= max {
-                        0
-                    } else {
-                        self.play_head.saturating_add(1)
-                    }
+        self.play_head = match self.direction {
+            CycleDirection::Forward => {
+                if self.play_head >= max {
+                    0
+                } else {
+                    self.play_head.saturating_add(1)
+                }
+            }
+
+            CycleDirection::Backward => {
+                if self.play_head == 0 {
+                    max
+                } else {
+                    self.play_head.saturating_sub(1)
+                }
+            }
+
+            CycleDirection::PingPong => {
+                if self.play_head == max {
+                    // Reached the end: go backwards
+                    self.is_odd = true;
+                } else if self.play_head == 0 {
+                    // Reached the beginning: go forwards
+                    self.is_odd = false;
                 }
 
-                CycleDirection::Backward => {
-                    if self.play_head <= 0 {
-                        max
-                    } else {
-                        self.play_head.saturating_sub(1)
-                    }
+                if self.is_odd {
+                    // Going backwards
+                    self.play_head.saturating_sub(1)
+                } else {
+                    // Going forward
+                    self.play_head.saturating_add(1)
                 }
-
-                CycleDirection::PingPong => {
-                    if self.play_head == max {
-                        // Reached the end: go backwards
-                        self.is_odd = true;
-                    } else if self.play_head == 0 {
-                        // Reached the beginning: go forwards
-                        self.is_odd = false;
-                    }
-
-                    if self.is_odd {
-                        // Going backwards
-                        self.play_head.saturating_sub(1)
-                    } else {
-                        // Going forward
-                        self.play_head.saturating_add(1)
-                    }
-                }
-            };
-
-            next
+            }
         };
 
         current
