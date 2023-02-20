@@ -1,4 +1,5 @@
 mod app;
+mod iter_utils;
 mod midi_event;
 mod midi_mapper;
 mod parser;

@@ -1,6 +1,5 @@
 // Based on: https://github.com/derekdreery/nom-midi-rs/
 #[cfg(test)]
-mod new;
 mod tests;
 mod types;
 mod utils;
@@ -13,6 +12,15 @@ use nom::{
 
 pub trait ToMidi {
     fn to_midi(&self) -> Vec<u8> {
+        unimplemented!()
+    }
+}
+
+pub trait Wrap {
+    fn wrap(self) -> MIDIRouterEvent
+    where
+        Self: Sized,
+    {
         unimplemented!()
     }
 }
@@ -34,6 +42,19 @@ impl ToMidi for NoteEvent {
             vec![0x80 + self.channel, self.note.into(), self.velocity]
         } else {
             vec![0x90 + self.channel, self.note.into(), self.velocity]
+        }
+    }
+}
+
+impl Wrap for NoteEvent {
+    fn wrap(self) -> MIDIRouterEvent {
+        MIDIRouterEvent {
+            device: "self".to_string(),
+            event: if self.velocity == 0 {
+                MIDIEvent::NoteOff(self)
+            } else {
+                MIDIEvent::NoteOn(self)
+            },
         }
     }
 }

@@ -1,22 +1,16 @@
 use super::Transform;
 use crate::{
-    midi_event::{MIDIEvent, MIDIRouterEvent, NoteEvent},
+    iter_utils::{Cycle, CycleDirection},
+    midi_event::{MIDIEvent, MIDIRouterEvent, NoteEvent, Wrap},
     scheduler::SchedulerHandler,
 };
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
-pub enum ArpeggioDirection {
-    Forward,
-    Backwards,
-    PingPong,
-}
-
-#[derive(Debug, Deserialize)]
 pub struct ArpeggioTransformOptions {
     subdivision: f64,
-    direction: ArpeggioDirection,
-    repeat: u8,
+    direction: CycleDirection,
+    repeat: Option<u64>,
     note_duration: Option<u64>,
 }
 
@@ -24,8 +18,8 @@ pub struct ArpeggioTransformOptions {
 pub struct ArpeggioTransform {
     tempo_subdiv: Option<f64>,
     pressed_keys: Vec<NoteEvent>,
-    current_index: usize,
     note_duration: u64,
+    cycle_iter: Cycle<NoteEvent>,
 }
 
 impl ArpeggioTransform {
@@ -33,8 +27,8 @@ impl ArpeggioTransform {
         ArpeggioTransform {
             tempo_subdiv: Some(config.subdivision),
             pressed_keys: vec![],
-            current_index: 0,
             note_duration: config.note_duration.unwrap_or(250),
+            cycle_iter: Cycle::new(vec![], config.direction.clone(), config.repeat),
         }
     }
 }
@@ -49,31 +43,12 @@ impl Transform for ArpeggioTransform {
             return None;
         }
 
-        let current_key = self
-            .pressed_keys
-            .get(self.current_index % self.pressed_keys.len());
+        let note_on = self.cycle_iter.next().clone();
+        let note_off = note_on.get_note_off();
 
-        current_key?;
-
-        let found = current_key.unwrap();
-        let note_off = found.get_note_off();
-
-        self.current_index += 1;
-
-        let next_message = MIDIRouterEvent {
-            device: "self".to_string(),
-            event: MIDIEvent::NoteOn(found.to_owned()),
-        };
-
-        scheduler.send_later(
-            MIDIRouterEvent {
-                device: "self".to_string(),
-                event: MIDIEvent::NoteOff(note_off),
-            },
-            self.note_duration,
-        );
-
-        Some(next_message)
+        scheduler.send_later(note_off.wrap(), self.note_duration);
+        scheduler.send_now(note_on.wrap());
+        None
     }
 
     fn on_message(
@@ -83,17 +58,21 @@ impl Transform for ArpeggioTransform {
     ) -> Option<MIDIRouterEvent> {
         match message.event {
             MIDIEvent::NoteOff(NoteEvent { note, .. }) => {
+                // Remove the current key by its note from the set of keys
                 self.pressed_keys.retain(
                     |NoteEvent {
                          note: stored_note, ..
                      }| *stored_note != note,
                 );
-                self.current_index = 0;
+                self.cycle_iter.update_vec(self.pressed_keys.clone());
+
                 None
             }
+
             MIDIEvent::NoteOn(note) => {
                 self.pressed_keys.push(note);
-                self.current_index = 0;
+                self.cycle_iter.update_vec(self.pressed_keys.clone());
+
                 None
             }
             _ => Some(message),

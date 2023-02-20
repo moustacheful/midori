@@ -1,4 +1,3 @@
-
 use futures::{Stream, StreamExt};
 use std::future;
 use std::time::Duration;
@@ -80,8 +79,6 @@ impl ClockHandler {
 
     pub fn create(&self, ratio: f64) -> impl Stream<Item = ()> {
         let receiver = self.sender.subscribe();
-        println!("{:?}", (self.ppqn * ratio) as u64);
-
         every(BroadcastStream::new(receiver), (self.ppqn * ratio) as u64).map(|w| w.unwrap())
     }
 }
