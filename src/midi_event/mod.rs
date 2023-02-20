@@ -3,12 +3,14 @@
 mod tests;
 mod types;
 mod utils;
+
 pub use self::types::Note;
 use nom::number::streaming::be_u8;
 use nom::{
     error::{make_error, ErrorKind},
     Err, IResult,
 };
+use serde::Deserialize;
 
 pub trait ToMidi {
     fn to_midi(&self) -> Vec<u8> {
@@ -154,7 +156,30 @@ pub enum MIDIEvent {
     PitchBend(PitchBend),
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize)]
+pub enum MIDIEventIdentity {
+    NoteOff,
+    NoteOn,
+    PolyphonicPressure,
+    Controller,
+    ChannelPressure,
+    ProgramChange,
+    PitchBend,
+}
+
 impl MIDIEvent {
+    pub fn get_identity(&self) -> MIDIEventIdentity {
+        match self {
+            MIDIEvent::NoteOff(_) => MIDIEventIdentity::NoteOff,
+            MIDIEvent::NoteOn(_) => MIDIEventIdentity::NoteOn,
+            MIDIEvent::PolyphonicPressure(_) => MIDIEventIdentity::PolyphonicPressure,
+            MIDIEvent::Controller(_) => MIDIEventIdentity::Controller,
+            MIDIEvent::ChannelPressure(_) => MIDIEventIdentity::ChannelPressure,
+            MIDIEvent::ProgramChange(_) => MIDIEventIdentity::ProgramChange,
+            MIDIEvent::PitchBend(_) => MIDIEventIdentity::PitchBend,
+        }
+    }
+
     pub fn get_channel(&self) -> u8 {
         match self {
             Self::NoteOn(note) => note.channel,
