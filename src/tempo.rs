@@ -52,10 +52,15 @@ impl Clock {
 
     pub async fn start(mut self) {
         println!("Started clock");
+
         loop {
             tokio::select! {
                 _ = self.interval.tick() => {
-                    self.sender.send(()).unwrap();
+                    // Apparently having no receivers will result in an error
+                    // so we do a preemptive check before forwarding this
+                    if self.sender.receiver_count() > 0 {
+                        self.sender.send(()).unwrap();
+                    }
                 }
 
                 Ok(new_bpm) = self.bpm_receiver.recv_async() => {
