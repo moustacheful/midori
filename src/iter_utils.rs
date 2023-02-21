@@ -91,7 +91,7 @@ impl<I> Cycle<I> {
 }
 
 #[cfg(test)]
-mod iter_utils_tests {
+mod tests {
     use super::{Cycle, CycleDirection};
 
     #[test]

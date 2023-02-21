@@ -39,6 +39,7 @@ impl Transform for DistributeTransform {
 
                 Some(message)
             }
+
             MIDIEvent::NoteOff(NoteEvent { note, .. }) => {
                 // Remove all keys with this note
                 self.pressed_keys.retain(|n| {
@@ -54,7 +55,65 @@ impl Transform for DistributeTransform {
 
                 None
             }
+
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        app::MIDIMapperEvent,
+        midi_event::{NoteEvent, Wrap},
+        scheduler::Scheduler,
+        transforms::Transform,
+    };
+
+    use super::{DistributeTransform, DistributeTransformOptions};
+
+    fn get_transform_instance() -> DistributeTransform {
+        let config = DistributeTransformOptions {
+            between: vec![9, 2, 4],
+        };
+
+        DistributeTransform::from_config(config)
+    }
+
+    #[test]
+    fn distributes_between_channels() {
+        let mut transform = get_transform_instance();
+        let (_scheduler, scheduler_handler) = Scheduler::new();
+
+        let note_on = NoteEvent {
+            channel: 3,
+            note: 1,
+            velocity: 127,
+        }
+        .wrap();
+
+        let result: Vec<_> = vec![
+            transform.process_message(
+                MIDIMapperEvent::RouterMessage(note_on.clone()),
+                &scheduler_handler,
+            ),
+            transform.process_message(
+                MIDIMapperEvent::RouterMessage(note_on.clone()),
+                &scheduler_handler,
+            ),
+            transform.process_message(
+                MIDIMapperEvent::RouterMessage(note_on.clone()),
+                &scheduler_handler,
+            ),
+        ]
+        .into_iter()
+        .map(|msg| {
+            let router_event = msg.unwrap();
+
+            router_event.event.get_channel()
+        })
+        .collect();
+
+        assert_eq!(result, vec![9, 2, 4])
     }
 }
