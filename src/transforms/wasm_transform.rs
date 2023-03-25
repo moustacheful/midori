@@ -34,6 +34,7 @@ impl WasmTransform {
             println!("No scheduler available on WasmTransform");
             return;
         }
+        // Use the set scheduler so we can send messages to it via WASM
         let scheduler = self.scheduler.as_ref().unwrap();
 
         // Wasm setup
@@ -45,7 +46,7 @@ impl WasmTransform {
         let scheduler_clone = scheduler.clone();
         let import_object = imports! {
             "index" => {
-                "sendLater" => Function::new_typed(&mut store, move |a: i32, b: i32, c: i32, d: i32, delay: i32| {
+                "$sendLater" => Function::new_typed(&mut store, move |a: i32, b: i32, c: i32, d: i32, delay: i32| {
                     if let Some(event) = values_to_midi_event(a,b,c,d) {
 
                         scheduler_clone.send_later(
@@ -62,6 +63,7 @@ impl WasmTransform {
                 }),
             }
         };
+
         self.module_instance = Some(Instance::new(&mut store, &module, &import_object).unwrap());
         self.module_store = Some(store);
     }
@@ -116,25 +118,36 @@ impl Transform for WasmTransform {
 }
 
 fn values_to_midi_event(m: i32, v1: i32, v2: i32, v3: i32) -> Option<MIDIEvent> {
+    let [local_v1, local_v2, local_v3]: [u8; 3] = [v1, v2, v3].map(|v| v.try_into().unwrap_or(0));
+
     let message_code = m;
     match message_code {
         0 => Some(MIDIEvent::NoteOn({
             NoteEvent {
-                channel: v1.try_into().unwrap_or(127),
-                note: v2.try_into().unwrap_or(127),
-                velocity: v3.try_into().unwrap_or(127),
+                channel: local_v1,
+                note: local_v2,
+                velocity: local_v3,
             }
         })),
+
         1 => Some(MIDIEvent::NoteOff({
             NoteEvent {
-                channel: v1.try_into().unwrap_or(127),
-                note: v2.try_into().unwrap_or(127),
+                channel: local_v1,
+                note: local_v2,
                 velocity: 0,
             }
         })),
+
+        3 => Some(MIDIEvent::Controller(crate::midi_event::Controller {
+            channel: local_v1,
+            controller: local_v2,
+            value: local_v3,
+        })),
+
         _ => None,
     }
 }
+
 fn midi_event_to_values(m: MIDIEvent) -> [Value; 4] {
     match m {
         MIDIEvent::NoteOff(NoteEvent {

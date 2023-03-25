@@ -1,0 +1,19 @@
+input_devices:
+  # Change me!
+  orba: "Artiphon Orba"
+
+output_devices:
+  # Change me!
+  emc: "Elektron Model:Cycles"
+
+pipelines:
+  - name: "WASM Example"
+    transforms:
+      # Only use NoteOn, NoteOff and Controller
+      - !Filter
+        event_types: [NoteOn, NoteOff, Controller]
+      # Process the notes with the following wasm module
+      - !Wasm
+        path: ./build/release.wasm
+      # Output the notes!
+      - !Output emc
