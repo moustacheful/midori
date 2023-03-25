@@ -10,7 +10,7 @@ use crate::transforms::transform::SerializedTransform;
 use crate::transforms::Transform;
 use crate::transforms::{
     ArpeggioTransform, DistributeTransform, FilterTransform, InspectTransform, MapTransform,
-    OutputTransform,
+    OutputTransform, WasmTransform,
 };
 
 #[derive(Debug, Deserialize)]
@@ -42,6 +42,8 @@ impl Pipeline {
         }
 
         let (scheduler, scheduler_handler) = Scheduler::new();
+
+        transform.set_scheduler(scheduler_handler.clone());
 
         let stream = futures::stream::select_all::select_all(streams).filter_map(move |v| {
             let result = transform
@@ -91,6 +93,10 @@ impl Pipeline {
 
                         SerializedTransform::Inspect(config) => {
                             Box::new(InspectTransform { prefix: config })
+                        }
+
+                        SerializedTransform::Wasm(config) => {
+                            Box::new(WasmTransform::from_config(config))
                         }
                     };
 

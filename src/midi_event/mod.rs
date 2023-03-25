@@ -219,7 +219,14 @@ impl TryFrom<&[u8]> for MIDIEvent {
 impl ToMidi for MIDIEvent {
     fn to_midi(&self) -> Vec<u8> {
         match self {
-            MIDIEvent::NoteOff(v) => v.to_midi(),
+            MIDIEvent::NoteOff(v) => (&NoteEvent {
+                // TODO: should maybe make this an option? some devices send NoteOffs with velocity
+                // Which may be undesired if the target device doesn't know how to respond to it
+                velocity: 0,
+                channel: v.channel,
+                note: v.note,
+            })
+                .to_midi(),
             MIDIEvent::NoteOn(v) => v.to_midi(),
             MIDIEvent::PolyphonicPressure(v) => v.to_midi(),
             MIDIEvent::Controller(v) => v.to_midi(),

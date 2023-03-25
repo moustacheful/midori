@@ -4,7 +4,7 @@ use crate::{app::MIDIMapperEvent, midi_event::MIDIRouterEvent, scheduler::Schedu
 
 use super::{
     arpeggio_transform::ArpeggioTransformOptions, distribute_transform::DistributeTransformOptions,
-    FilterTransformOptions, MapTransformOptions,
+    wasm_transform::WasmTransformOptions, FilterTransformOptions, MapTransformOptions,
 };
 
 #[derive(Debug, Deserialize)]
@@ -13,11 +13,14 @@ pub enum SerializedTransform {
     Arpeggio(ArpeggioTransformOptions),
     Map(MapTransformOptions),
     Distribute(DistributeTransformOptions),
+    Wasm(WasmTransformOptions),
     Output(String),
     Inspect(String),
 }
 
 pub trait Transform {
+    fn set_scheduler(&mut self, _scheduler: SchedulerHandler) {}
+
     fn get_tempo_subdiv(&self) -> Option<f64> {
         None
     }
