@@ -52,6 +52,26 @@ impl MidiMapper {
         }
     }
 
+    pub fn print_ports() {
+        let midi_in = MidiInput::new("midir forwarding input").unwrap();
+        let midi_out = MidiOutput::new("midir forwarding output").unwrap();
+
+        fn print_ports_from<T: MidiIO>(m: T) {
+            let midi_ports = m.ports();
+            midi_ports.iter().for_each(|port| {
+                println!("{}", m.port_name(port).unwrap());
+            });
+        }
+
+        println!("Available input ports:");
+        print_ports_from(midi_in);
+
+        println!("");
+
+        println!("Available output ports:");
+        print_ports_from(midi_out);
+    }
+
     fn select_port_by_name<T: MidiIO>(
         midi_io: &T,
         name: String,
@@ -59,12 +79,8 @@ impl MidiMapper {
         let midi_ports = midi_io.ports();
         let port = midi_ports
             .iter()
-            .map(|port| {
-                println!("{:?}", midi_io.port_name(port));
-                port
-            })
             .find(|port| midi_io.port_name(port).unwrap().starts_with(&name))
-            .unwrap_or_else(|| panic!("Could not find port {}", name));
+            .expect("Could not find port");
 
         Ok(port.clone())
     }

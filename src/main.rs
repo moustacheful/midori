@@ -9,35 +9,52 @@ mod tempo;
 mod transforms;
 
 use app::App;
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use midi_mapper::MidiMapper;
 use parser::test_parse;
 
 /// TODO
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct Args {
-    /// Config file path
-    #[arg(short, long)]
-    config_file: String,
+#[derive(Debug, Parser)]
+#[command(name = "TODO")]
+#[command(about = "TODO", long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Debug, Subcommand)]
+enum Commands {
+    Start {
+        /// Config file path
+        #[arg(short, long)]
+        config_file: String,
+    },
+    Devices {},
 }
 
 // How many threads should I use here...?
 #[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn main() {
-    let args = Args::parse();
-    let config = test_parse(args.config_file).unwrap();
-    let mut midi_mapper = MidiMapper::new();
+    let args = Cli::parse();
 
-    config.input_devices.iter().for_each(|(alias, full_name)| {
-        midi_mapper.add_input(full_name.clone(), alias.clone());
-    });
+    match args.command {
+        Commands::Start { config_file } => {
+            let config = test_parse(config_file).unwrap();
+            let mut midi_mapper = MidiMapper::new();
 
-    config.output_devices.iter().for_each(|(alias, full_name)| {
-        midi_mapper.add_output(full_name.clone(), alias.clone());
-    });
+            config.input_devices.iter().for_each(|(alias, full_name)| {
+                midi_mapper.add_input(full_name.clone(), alias.clone());
+            });
 
-    let app = App::from_config(config);
+            config.output_devices.iter().for_each(|(alias, full_name)| {
+                midi_mapper.add_output(full_name.clone(), alias.clone());
+            });
 
-    midi_mapper.start(app);
+            let app = App::from_config(config);
+            midi_mapper.start(app);
+        }
+        Commands::Devices {} => {
+            MidiMapper::print_ports();
+        }
+    }
 }
