@@ -83,4 +83,12 @@ You use those names in the configuration file.
 
 ## Docs
 
-Not yet that's for sure.
+Not yet that's for sure. But here's a list of the available transforms. Some more complete than others.
+
+- `Arpeggio` can arpeggiate the current chord
+- `Distribute` will distribute notes between multiple channels (can be useful to make monophonic synths with multiple channels into a polyphonic-ish)
+- `Filter` filters by `event_types` or `channel`
+- `Inspect` prints out any events coming into this transform. Useful to debug.
+- `Map` maps an incoming event to a different `channel` or `cc`.
+- `Output` outputs all events to a specific output device. This should be the last transform of every pipeline.
+- `Wasm` allows you to use a wasm module as a transform. Look into `examples/wasm` for an example with AssemblyScript
