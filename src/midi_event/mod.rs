@@ -10,6 +10,7 @@ use nom::{
     error::{make_error, ErrorKind},
     Err, IResult,
 };
+use schemars::JsonSchema;
 use serde::Deserialize;
 
 pub trait ToMidi {
@@ -156,7 +157,7 @@ pub enum MIDIEvent {
     PitchBend(PitchBend),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize, JsonSchema)]
 pub enum MIDIEventIdentity {
     NoteOff,
     NoteOn,

@@ -3,9 +3,10 @@ use crate::{
     midi_event::{MIDIEvent, MIDIEventIdentity, MIDIRouterEvent},
     scheduler::SchedulerHandler,
 };
+use schemars::JsonSchema;
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct FilterTransformOptions {
     pub channels: Option<Vec<u8>>,
     pub event_types: Option<Vec<MIDIEventIdentity>>,

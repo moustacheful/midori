@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use schemars::JsonSchema;
 use serde::Deserialize;
 
 use super::Transform;
@@ -8,7 +9,7 @@ use crate::{
     scheduler::SchedulerHandler,
 };
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct MapTransformOptions {
     pub channels: Option<Vec<(u8, u8)>>,
     pub cc: Option<Vec<(u8, u8)>>,

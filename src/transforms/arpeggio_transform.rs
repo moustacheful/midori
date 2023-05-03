@@ -4,9 +4,10 @@ use crate::{
     midi_event::{MIDIEvent, MIDIRouterEvent, NoteEvent, Wrap},
     scheduler::SchedulerHandler,
 };
+use schemars::JsonSchema;
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct ArpeggioTransformOptions {
     subdivision: f64,
     direction: CycleDirection,

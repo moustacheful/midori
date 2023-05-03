@@ -1,0 +1,282 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AppConfig",
+  "type": "object",
+  "required": [
+    "input_devices",
+    "output_devices",
+    "pipelines"
+  ],
+  "properties": {
+    "input_devices": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "output_devices": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "pipelines": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/PipelineOptions"
+      }
+    }
+  },
+  "definitions": {
+    "CycleDirection": {
+      "type": "string",
+      "enum": [
+        "Forward",
+        "Backward",
+        "PingPong"
+      ]
+    },
+    "MIDIEventIdentity": {
+      "type": "string",
+      "enum": [
+        "NoteOff",
+        "NoteOn",
+        "PolyphonicPressure",
+        "Controller",
+        "ChannelPressure",
+        "ProgramChange",
+        "PitchBend"
+      ]
+    },
+    "PipelineOptions": {
+      "type": "object",
+      "required": [
+        "name",
+        "transforms"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "transforms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SerializedTransform"
+          }
+        }
+      }
+    },
+    "SerializedTransform": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "channels": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint8",
+                "minimum": 0.0
+              }
+            },
+            "event_types": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/definitions/MIDIEventIdentity"
+              }
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "Filter"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "direction",
+            "subdivision",
+            "type"
+          ],
+          "properties": {
+            "direction": {
+              "$ref": "#/definitions/CycleDirection"
+            },
+            "note_duration": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "repeat": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "subdivision": {
+              "type": "number",
+              "format": "double"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "Arpeggio"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "cc": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "array",
+                "items": [
+                  {
+                    "type": "integer",
+                    "format": "uint8",
+                    "minimum": 0.0
+                  },
+                  {
+                    "type": "integer",
+                    "format": "uint8",
+                    "minimum": 0.0
+                  }
+                ],
+                "maxItems": 2,
+                "minItems": 2
+              }
+            },
+            "channels": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "array",
+                "items": [
+                  {
+                    "type": "integer",
+                    "format": "uint8",
+                    "minimum": 0.0
+                  },
+                  {
+                    "type": "integer",
+                    "format": "uint8",
+                    "minimum": 0.0
+                  }
+                ],
+                "maxItems": 2,
+                "minItems": 2
+              }
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "Map"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "between",
+            "type"
+          ],
+          "properties": {
+            "between": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "uint8",
+                "minimum": 0.0
+              }
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "Distribute"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "path",
+            "type"
+          ],
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "Wasm"
+              ]
+            }
+          }
+        },
+        {
+          "type": [
+            "object",
+            "string"
+          ],
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "Output"
+              ]
+            }
+          }
+        },
+        {
+          "type": [
+            "object",
+            "string"
+          ],
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "Inspect"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

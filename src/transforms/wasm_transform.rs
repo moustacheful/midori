@@ -3,11 +3,12 @@ use crate::{
     midi_event::{MIDIEvent, MIDIRouterEvent, NoteEvent},
     scheduler::SchedulerHandler,
 };
+use schemars::JsonSchema;
 use serde::Deserialize;
 use std::fs;
 use wasmer::{imports, Function, Instance, Module, Store, Value};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct WasmTransformOptions {
     path: String,
 }
