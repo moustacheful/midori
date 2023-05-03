@@ -1,3 +1,4 @@
+use schemars::JsonSchema;
 use serde::Deserialize;
 
 use crate::{app::MIDIMapperEvent, midi_event::MIDIRouterEvent, scheduler::SchedulerHandler};
@@ -7,7 +8,8 @@ use super::{
     wasm_transform::WasmTransformOptions, FilterTransformOptions, MapTransformOptions,
 };
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(tag = "type")]
 pub enum SerializedTransform {
     Filter(FilterTransformOptions),
     Arpeggio(ArpeggioTransformOptions),

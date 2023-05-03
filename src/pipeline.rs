@@ -1,5 +1,6 @@
 use futures::StreamExt;
 use futures::{future, Stream};
+use schemars::JsonSchema;
 use serde::Deserialize;
 use std::pin::Pin;
 
@@ -13,7 +14,7 @@ use crate::transforms::{
     OutputTransform, WasmTransform,
 };
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct PipelineOptions {
     pub name: String,
     pub transforms: Vec<SerializedTransform>,

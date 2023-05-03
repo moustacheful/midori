@@ -1,7 +1,8 @@
+use schemars::JsonSchema;
 use serde::Deserialize;
 use std::{iter, ops::Range};
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub enum CycleDirection {
     Forward,
     Backward,

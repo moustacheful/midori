@@ -6,9 +6,10 @@ use crate::{
     tempo::Clock,
 };
 use futures::{future::select_all, StreamExt};
+use schemars::JsonSchema;
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct AppConfig {
     pub input_devices: HashMap<String, String>,
     pub output_devices: HashMap<String, String>,

@@ -8,10 +8,12 @@ mod scheduler;
 mod tempo;
 mod transforms;
 
+use crate::app::AppConfig;
 use app::App;
 use clap::{Parser, Subcommand};
 use midi_mapper::MidiMapper;
 use parser::test_parse;
+use schemars::schema_for;
 
 /// TODO
 #[derive(Debug, Parser)]
@@ -29,7 +31,8 @@ enum Commands {
         #[arg(short, long)]
         config_file: String,
     },
-    Devices {},
+    Devices,
+    Schema,
 }
 
 // How many threads should I use here...?
@@ -53,8 +56,14 @@ async fn main() {
             let app = App::from_config(config);
             midi_mapper.start(app);
         }
+
         Commands::Devices {} => {
             MidiMapper::print_ports();
+        }
+
+        Commands::Schema {} => {
+            let schema = schema_for!(AppConfig);
+            println!("{}", serde_json::to_string_pretty(&schema).unwrap());
         }
     }
 }
