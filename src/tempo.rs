@@ -1,22 +1,50 @@
+use async_trait::async_trait;
 use futures::{Stream, StreamExt};
 use std::future;
 use std::time::Duration;
-use tokio::sync::broadcast::Sender;
+use tokio::sync::broadcast::{Receiver, Sender};
 use tokio::time::Interval;
 use tokio_stream::wrappers::BroadcastStream;
 
-pub struct Clock {
+#[derive(Clone, Debug)]
+pub enum ClockEvent {
+    Tick,
+    Restart,
+}
+
+pub struct ExternalClock {
+    pub sender: Sender<ClockEvent>,
+}
+
+impl ExternalClock {
+    pub fn new(ppqn: f64) -> (Self, ClockHandler) {
+        let (sender, _) = tokio::sync::broadcast::channel::<ClockEvent>(999999);
+
+        let sender_clone = sender.clone();
+
+        (
+            Self { sender },
+            ClockHandler {
+                ppqn,
+                sender: sender_clone,
+                bpm_sender: None,
+            },
+        )
+    }
+}
+
+pub struct InternalClock {
     bpm: f64,
     // Pulses per quarter note (beat)
     ppqn: f64,
     interval: Interval,
-    sender: Sender<()>,
+    sender: Sender<ClockEvent>,
     bpm_receiver: flume::Receiver<f64>,
 }
 
-impl Clock {
+impl InternalClock {
     pub fn new(bpm: f64, ppqn: f64) -> (Self, ClockHandler) {
-        let (sender, _) = tokio::sync::broadcast::channel::<()>(999999);
+        let (sender, _) = tokio::sync::broadcast::channel::<ClockEvent>(999999);
         let (bpm_sender, bpm_receiver) = flume::unbounded::<f64>();
         let sender_clone = sender.clone();
         let interval = Self::get_interval(bpm, ppqn);
@@ -32,7 +60,7 @@ impl Clock {
             ClockHandler {
                 ppqn,
                 sender: sender_clone,
-                bpm_sender,
+                bpm_sender: Some(bpm_sender),
             },
         )
     }
@@ -59,7 +87,7 @@ impl Clock {
                     // Apparently having no receivers will result in an error
                     // so we do a preemptive check before forwarding this
                     if self.sender.receiver_count() > 0 {
-                        self.sender.send(()).unwrap();
+                        self.sender.send(ClockEvent::Tick).unwrap();
                     }
                 }
 
@@ -74,28 +102,42 @@ impl Clock {
 #[derive(Clone)]
 pub struct ClockHandler {
     ppqn: f64,
-    sender: Sender<()>,
-    bpm_sender: flume::Sender<f64>,
+    sender: Sender<ClockEvent>,
+    bpm_sender: Option<flume::Sender<f64>>,
 }
 impl ClockHandler {
     pub fn set_bpm(&self, bpm: f64) {
-        self.bpm_sender.send(bpm).unwrap();
+        if let Some(bpm_sender) = self.bpm_sender.as_ref() {
+            bpm_sender.send(bpm).unwrap();
+        }
     }
 
     pub fn create(&self, ratio: f64) -> impl Stream<Item = ()> {
         let receiver = self.sender.subscribe();
-        every(BroadcastStream::new(receiver), (self.ppqn * ratio) as u64).map(|w| w.unwrap())
+        every(
+            BroadcastStream::new(receiver).map(|w| w.unwrap()),
+            (self.ppqn * ratio) as u64,
+        )
+        .map(|_| ())
     }
 }
 
-pub fn every<I>(s: impl Stream<Item = I>, n: u64) -> impl Stream<Item = I> {
+pub fn every(s: impl Stream<Item = ClockEvent>, n: u64) -> impl Stream<Item = ClockEvent> {
     let mut count = 0;
     let max = n - 1;
 
-    s.filter(move |_| {
-        let max_reached = count == max;
+    s.filter(move |evt| {
+        let mut max_reached = count == max;
 
-        count = if max_reached { 0 } else { count + 1 };
+        match evt {
+            ClockEvent::Tick => {
+                count = if max_reached { 0 } else { count + 1 };
+            }
+            ClockEvent::Restart => {
+                count = max;
+                max_reached = true;
+            }
+        }
 
         future::ready(max_reached)
     })

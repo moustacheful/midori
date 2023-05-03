@@ -171,10 +171,7 @@ fn midi_event_to_values(m: MIDIEvent) -> [Value; 4] {
             Value::I32(note as i32),
             Value::I32(velocity as i32),
         ],
-        MIDIEvent::PolyphonicPressure(_) => todo!(),
-        MIDIEvent::Controller(_) => todo!(),
-        MIDIEvent::ChannelPressure(_) => todo!(),
-        MIDIEvent::ProgramChange(_) => todo!(),
-        MIDIEvent::PitchBend(_) => todo!(),
+
+        _ => todo!(),
     }
 }
