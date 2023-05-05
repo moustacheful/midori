@@ -1,8 +1,23 @@
+use schemars::JsonSchema;
+use serde::Deserialize;
+
 use super::Transform;
 use crate::{midi_event::MIDIRouterEvent, scheduler::SchedulerHandler};
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct InspectTransformOptions {
+    pub prefix: String,
+}
 pub struct InspectTransform {
     pub prefix: String,
+}
+
+impl InspectTransform {
+    pub fn from_config(options: InspectTransformOptions) -> Self {
+        Self {
+            prefix: options.prefix,
+        }
+    }
 }
 
 impl Transform for InspectTransform {

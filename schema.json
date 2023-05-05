@@ -243,14 +243,15 @@
           }
         },
         {
-          "type": [
-            "object",
-            "string"
-          ],
+          "type": "object",
           "required": [
+            "output_device",
             "type"
           ],
           "properties": {
+            "output_device": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "enum": [
@@ -260,14 +261,15 @@
           }
         },
         {
-          "type": [
-            "object",
-            "string"
-          ],
+          "type": "object",
           "required": [
+            "prefix",
             "type"
           ],
           "properties": {
+            "prefix": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "enum": [

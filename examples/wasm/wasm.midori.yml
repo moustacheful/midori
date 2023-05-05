@@ -4,16 +4,17 @@ input_devices:
 
 output_devices:
   # Change me!
-  emc: "Elektron Model:Cycles"
+  midi: "Midi Through"
 
 pipelines:
   - name: "WASM Example"
     transforms:
       # Only use NoteOn, NoteOff and Controller
-      - !Filter
+      - type: Filter
         event_types: [NoteOn, NoteOff, Controller]
       # Process the notes with the following wasm module
-      - !Wasm
+      - type: Wasm
         path: ./build/release.wasm
       # Output the notes!
-      - !Output emc
+      - type: Output
+        output_device: midi

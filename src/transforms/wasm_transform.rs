@@ -1,6 +1,6 @@
 use super::Transform;
 use crate::{
-    midi_event::{MIDIEvent, MIDIRouterEvent, NoteEvent},
+    midi_event::{Controller, MIDIEvent, MIDIRouterEvent, NoteEvent},
     scheduler::SchedulerHandler,
 };
 use schemars::JsonSchema;
@@ -150,6 +150,7 @@ fn values_to_midi_event(m: i32, v1: i32, v2: i32, v3: i32) -> Option<MIDIEvent> 
 }
 
 fn midi_event_to_values(m: MIDIEvent) -> [Value; 4] {
+    dbg!(&m);
     match m {
         MIDIEvent::NoteOff(NoteEvent {
             channel,
@@ -171,8 +172,17 @@ fn midi_event_to_values(m: MIDIEvent) -> [Value; 4] {
             Value::I32(note as i32),
             Value::I32(velocity as i32),
         ],
+        MIDIEvent::Controller(Controller {
+            channel,
+            controller,
+            value,
+        }) => [
+            Value::I32(3),
+            Value::I32(channel as i32),
+            Value::I32(controller as i32),
+            Value::I32(value as i32),
+        ],
         MIDIEvent::PolyphonicPressure(_) => todo!(),
-        MIDIEvent::Controller(_) => todo!(),
         MIDIEvent::ChannelPressure(_) => todo!(),
         MIDIEvent::ProgramChange(_) => todo!(),
         MIDIEvent::PitchBend(_) => todo!(),

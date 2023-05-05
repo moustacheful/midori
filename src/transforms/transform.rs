@@ -5,6 +5,7 @@ use crate::{app::MIDIMapperEvent, midi_event::MIDIRouterEvent, scheduler::Schedu
 
 use super::{
     arpeggio_transform::ArpeggioTransformOptions, distribute_transform::DistributeTransformOptions,
+    inspect_transform::InspectTransformOptions, output_transform::OutputTransformOptions,
     wasm_transform::WasmTransformOptions, FilterTransformOptions, MapTransformOptions,
 };
 
@@ -16,8 +17,8 @@ pub enum SerializedTransform {
     Map(MapTransformOptions),
     Distribute(DistributeTransformOptions),
     Wasm(WasmTransformOptions),
-    Output(String),
-    Inspect(String),
+    Output(OutputTransformOptions),
+    Inspect(InspectTransformOptions),
 }
 
 pub trait Transform {

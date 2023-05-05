@@ -93,7 +93,7 @@ impl Pipeline {
                         }
 
                         SerializedTransform::Inspect(config) => {
-                            Box::new(InspectTransform { prefix: config })
+                            Box::new(InspectTransform::from_config(config))
                         }
 
                         SerializedTransform::Wasm(config) => {

@@ -9,9 +9,10 @@ pipelines:
     transforms:
       # Distributes the notes on/off between the given channels
       # This can be useful for instance to play chords on
-      - !Distribute
+      - type: Distribute
         between: [0, 1, 2]
       # Output the notes!
       # First note played will go to channel 1 on the model cycles
       # second will go to channel 2... and so on
-      - !Output emc
+      - type: Output
+        output_device: emc
