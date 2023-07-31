@@ -8,10 +8,9 @@ use crate::app::MIDIMapperEvent;
 use crate::scheduler::Scheduler;
 use crate::tempo::ClockHandler;
 use crate::transforms::transform::SerializedTransform;
-use crate::transforms::Transform;
 use crate::transforms::{
     ArpeggioTransform, DistributeTransform, FilterTransform, InspectTransform, MapTransform,
-    OutputTransform, WasmTransform,
+    MirrorTransform, OutputTransform, Transform, WasmTransform,
 };
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -98,6 +97,10 @@ impl Pipeline {
 
                         SerializedTransform::Wasm(config) => {
                             Box::new(WasmTransform::from_config(config))
+                        }
+
+                        SerializedTransform::Mirror(config) => {
+                            Box::new(MirrorTransform::from_config(config))
                         }
                     };
 

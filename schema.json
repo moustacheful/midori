@@ -85,6 +85,15 @@
                 "minimum": 0.0
               }
             },
+            "devices": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            },
             "event_types": {
               "type": [
                 "array",
@@ -274,6 +283,31 @@
               "type": "string",
               "enum": [
                 "Inspect"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "channels": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint8",
+                "minimum": 0.0
+              }
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "Mirror"
               ]
             }
           }

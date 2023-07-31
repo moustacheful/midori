@@ -5,8 +5,9 @@ use crate::{app::MIDIMapperEvent, midi_event::MIDIRouterEvent, scheduler::Schedu
 
 use super::{
     arpeggio_transform::ArpeggioTransformOptions, distribute_transform::DistributeTransformOptions,
-    inspect_transform::InspectTransformOptions, output_transform::OutputTransformOptions,
-    wasm_transform::WasmTransformOptions, FilterTransformOptions, MapTransformOptions,
+    inspect_transform::InspectTransformOptions, mirror_transform::MirrorTransformOptions,
+    output_transform::OutputTransformOptions, wasm_transform::WasmTransformOptions,
+    FilterTransformOptions, MapTransformOptions,
 };
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -19,6 +20,7 @@ pub enum SerializedTransform {
     Wasm(WasmTransformOptions),
     Output(OutputTransformOptions),
     Inspect(InspectTransformOptions),
+    Mirror(MirrorTransformOptions),
 }
 
 pub trait Transform {
