@@ -80,7 +80,7 @@ impl MidiMapper {
         let port = midi_ports
             .iter()
             .find(|port| midi_io.port_name(port).unwrap().starts_with(&name))
-            .expect("Could not find port");
+            .expect(format!("Could not find port: '{name}'").as_str());
 
         Ok(port.clone())
     }
