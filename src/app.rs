@@ -36,7 +36,13 @@ impl App {
             pipelines: config
                 .pipelines
                 .into_iter()
-                .map(Pipeline::from_config)
+                .enumerate()
+                .map(|(i, config)| {
+                    Pipeline::from_config(PipelineOptions {
+                        name: config.name.or(Some(format!("Pipeline {i}"))),
+                        ..config
+                    })
+                })
                 .collect(),
         }
     }

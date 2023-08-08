@@ -20,40 +20,45 @@ pipelines:
   - name: "Tilt to pitch ch2"
     transforms:
       # Take ONLY controller events from channel 0
-      - !Filter
+      - type: Filter
+        devices: ["orba"]
         channels: [0]
         event_types: [Controller]
-      - !Map
+      - type: Map
         channels:
           - [0, 2] # Map from channel 0 to channel 2
         cc:
           - [1, 13] # Map cc 1 to 13
-      - !Output emc # Send them to Model:Cycles
+      - type: Output
+        output_device: emc # Send them to Model:Cycles
 
   # The following group of pipelines will send events from channel 1 to channels 3 and 4 at the same time
   - name: "Route events to Model:Cycles ch2"
     transforms:
-      - !Map
+      - type: Map
         channels:
           - [1, 2]
-      - !Output emc
+      - type: Output
+        output_device: emc
 
   - name: "Route events to Model:Cycles ch3"
     transforms:
-      - !Map
+      - type: Map
         channels:
           - [1, 3]
-      - !Output emc
+      - type: Output
+        output_device: emc
 
   - name: "Arpeggio ch2 only"
     transforms:
-      - !Filter
+      - type: Filter
         channels: [2]
-      - !Arpeggio
+      - type: Arpeggio
         subdivision: 0.25 # 1/4ths
         direction: PingPong
         note_duration: 100
-      - !Output emc
+      - type: Output
+        output_device: emc
 ```
 
 ## Why

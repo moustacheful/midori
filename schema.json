@@ -51,12 +51,14 @@
     "PipelineOptions": {
       "type": "object",
       "required": [
-        "name",
         "transforms"
       ],
       "properties": {
         "name": {
-          "type": "string"
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "transforms": {
           "type": "array",
@@ -272,12 +274,14 @@
         {
           "type": "object",
           "required": [
-            "prefix",
             "type"
           ],
           "properties": {
             "prefix": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "type": {
               "type": "string",

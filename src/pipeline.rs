@@ -15,7 +15,7 @@ use crate::transforms::{
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct PipelineOptions {
-    pub name: String,
+    pub name: Option<String>,
     pub transforms: Vec<SerializedTransform>,
 }
 
@@ -65,7 +65,7 @@ impl Pipeline {
         Self {
             tx,
             rx,
-            name: config.name,
+            name: config.name.unwrap_or("huh".into()),
             transforms: config
                 .transforms
                 .into_iter()

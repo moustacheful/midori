@@ -6,8 +6,10 @@ use crate::{midi_event::MIDIRouterEvent, scheduler::SchedulerHandler};
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct InspectTransformOptions {
-    pub prefix: String,
+    pub prefix: Option<String>,
 }
+
+// A helper transform that prints whatever it receives, with an optional prefix
 pub struct InspectTransform {
     pub prefix: String,
 }
@@ -15,7 +17,10 @@ pub struct InspectTransform {
 impl InspectTransform {
     pub fn from_config(options: InspectTransformOptions) -> Self {
         Self {
-            prefix: options.prefix,
+            prefix: options
+                .prefix
+                .map(|prefix| format!("[{prefix}]"))
+                .unwrap_or("".into()),
         }
     }
 }
@@ -26,7 +31,7 @@ impl Transform for InspectTransform {
         v: MIDIRouterEvent,
         _scheduler: &SchedulerHandler,
     ) -> Option<MIDIRouterEvent> {
-        println!("[{:?}]: {:?}", self.prefix, v);
+        println!("{}{}", self.prefix, v);
 
         Some(v)
     }
