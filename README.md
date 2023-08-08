@@ -1,6 +1,6 @@
 # midori
 
-Name extremely temporary.
+Name extremely temporary. But it's something on Mi-Do... something?
 
 ## What
 
@@ -11,52 +11,27 @@ For instance:
 
 ```yaml
 input_devices:
-  orba: "Artiphon Orba"
+  op1: "OP-1"
 
 output_devices:
   emc: "Elektron Model:Cycles"
 
 pipelines:
-  - name: "Tilt to pitch ch2"
-    transforms:
-      # Take ONLY controller events from channel 0
+  - transforms:
+      # Only take note events
       - type: Filter
-        devices: ["orba"]
-        channels: [0]
-        event_types: [Controller]
-      - type: Map
-        channels:
-          - [0, 2] # Map from channel 0 to channel 2
-        cc:
-          - [1, 13] # Map cc 1 to 13
-      - type: Output
-        output_device: emc # Send them to Model:Cycles
+        event_types:
+          - NoteOff
+          - NoteOn
 
-  # The following group of pipelines will send events from channel 1 to channels 3 and 4 at the same time
-  - name: "Route events to Model:Cycles ch2"
-    transforms:
-      - type: Map
-        channels:
-          - [1, 2]
-      - type: Output
-        output_device: emc
-
-  - name: "Route events to Model:Cycles ch3"
-    transforms:
-      - type: Map
-        channels:
-          - [1, 3]
-      - type: Output
-        output_device: emc
-
-  - name: "Arpeggio ch2 only"
-    transforms:
-      - type: Filter
-        channels: [2]
       - type: Arpeggio
-        subdivision: 0.25 # 1/4ths
-        direction: PingPong
-        note_duration: 100
+        note_duration: 200
+        subdivision: 0.125 # 1/8th notes
+        direction: Forward
+
+      - type: Distribute
+        between: [2, 3, 4] # Each note will be distributed in order among these channels
+
       - type: Output
         output_device: emc
 ```
@@ -95,5 +70,6 @@ Not yet that's for sure. But here's a list of the available transforms. Some mor
 - `Filter` filters by `event_types` or `channel`
 - `Inspect` prints out any events coming into this transform. Useful to debug.
 - `Map` maps an incoming event to a different `channel` or `cc`.
+- `Mirror` will duplicate incoming events among the given `channels`
 - `Output` outputs all events to a specific output device. This should be the last transform of every pipeline.
 - `Wasm` allows you to use a wasm module as a transform. Look into `examples/wasm` for an example with AssemblyScript
