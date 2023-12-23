@@ -1,6 +1,6 @@
 use super::Transform;
 use crate::{
-    midi_event::{MIDIEvent, MIDIEventIdentity, MIDIRouterEvent},
+    midi_event::{MIDIEventIdentity, MIDIRouterEvent},
     scheduler::SchedulerHandler,
 };
 use schemars::JsonSchema;
