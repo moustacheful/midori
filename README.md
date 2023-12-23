@@ -73,7 +73,7 @@ You use those names in the configuration file.
 
 ## Docs
 
-Not yet that's for sure. But here's a list of the available transforms. Some more complete than others.
+Not yet that's for sure. But here's a list of the available transforms. Some more complete than others. As a hint: you can also use the repo's `schema.json` so you get some auto complete hints.
 
 ### `pipelines`
 
